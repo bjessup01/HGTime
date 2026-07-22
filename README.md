@@ -506,3 +506,42 @@ NOTE: 04/03/2026 Good Friday — worked 4 days this week, holiday converted
 
 Salaried cards say "floating holiday added" rather than "elected," since
 salaried employees are never offered the choice.
+
+---
+
+# Pay period management
+
+## Run the migration
+
+`supabase/migrations/0016_pay_periods.sql`
+
+## `/admin/pay-periods`
+
+**Semi-monthly** — a year button. The dates never vary (11th–25th, 26th–10th),
+so 24 periods are created at once. The year field pre-fills with the first year
+not already covered, and badges show which years are on file and whether any are
+incomplete.
+
+**Bi-weekly** — a season generator. No fixed anchor, since the season starts
+when the first bi-weekly employee starts. Enter the Sunday and how many periods.
+
+The Sunday requirement is enforced at both layers: the field highlights and the
+button disables when the date isn't a Sunday, with a one-click "use the next
+Sunday" fix, and the database rejects it regardless. An off-by-one anchor would
+misalign every overtime week for the season, so it's worth being strict.
+
+Seasons already on file are listed, grouped by contiguous runs — a gap of more
+than one day between periods starts a new season.
+
+## Deletion
+
+Blocked once a period has any timecard. The list shows timecard and entry counts
+per period; periods in use show "in use" instead of a delete link, and the
+database raises an error naming the count if anything tries anyway.
+
+## Future periods now visible
+
+The picker on the timecard and approvals screens previously showed only the
+current period and earlier. It now includes the next two upcoming periods, so
+time can be entered in advance — scheduled vacation, for instance — and a
+period that has just been generated is reachable before today falls inside it.

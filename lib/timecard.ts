@@ -108,23 +108,39 @@ export async function currentPayPeriod(
   return (recent as PayPeriod) ?? null;
 }
 
-/** Recent periods for the period picker. */
+/**
+ * Periods for the picker: recent ones plus a couple ahead.
+ *
+ * Future periods are included so time can be entered in advance -
+ * scheduled vacation, for instance - and so a period that has just
+ * started is reachable before today falls inside it.
+ */
 export async function recentPayPeriods(
   payrollType: "semi_monthly" | "bi_weekly",
-  limit = 8
+  limit = 8,
+  future = 2
 ): Promise<PayPeriod[]> {
   const sb = supabaseServer();
   const today = new Date().toISOString().slice(0, 10);
 
-  const { data } = await sb
-    .from("pay_periods")
-    .select("*")
-    .eq("payroll_type", payrollType)
-    .lte("start_date", today)
-    .order("start_date", { ascending: false })
-    .limit(limit);
+  const [{ data: past }, { data: ahead }] = await Promise.all([
+    sb
+      .from("pay_periods")
+      .select("*")
+      .eq("payroll_type", payrollType)
+      .lte("start_date", today)
+      .order("start_date", { ascending: false })
+      .limit(limit),
+    sb
+      .from("pay_periods")
+      .select("*")
+      .eq("payroll_type", payrollType)
+      .gt("start_date", today)
+      .order("start_date", { ascending: true })
+      .limit(future),
+  ]);
 
-  return (data as PayPeriod[]) ?? [];
+  return [...((ahead as PayPeriod[]) ?? []).reverse(), ...((past as PayPeriod[]) ?? [])];
 }
 
 export async function loadTimecard(timecardId: string) {
