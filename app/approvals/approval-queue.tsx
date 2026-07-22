@@ -94,7 +94,16 @@ export default function ApprovalQueue({
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <a
+            href={`/print?period=${currentPeriodId}&approved=1`}
+            target="_blank"
+            rel="noopener"
+            className="rounded-md border border-[var(--line)] bg-white px-4 py-2 text-sm font-medium hover:bg-[var(--bg)]"
+          >
+            Print approved
+          </a>
+
           <select
             value={payrollType}
             onChange={(e) => changePayroll(e.target.value)}

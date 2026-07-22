@@ -14,6 +14,8 @@ export default async function AppShell({ children }: { children: React.ReactNode
     { href: "/admin/employees", label: "Employees", show: isAdmin },
     { href: "/admin/work-codes", label: "Work codes", show: isAdmin },
     { href: "/admin/balances", label: "Balances", show: isAdmin },
+    { href: "/admin/year-end", label: "Year end", show: isAdmin },
+    { href: "/admin/audit", label: "Audit", show: isAdmin },
     { href: "/admin/networks", label: "Networks", show: isAdmin },
   ].filter((l) => l.show);
 

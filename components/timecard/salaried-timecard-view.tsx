@@ -10,6 +10,7 @@ import {
 import { Panel, Button, Badge, selectClass } from "@/components/ui";
 import SalariedDayRow from "./salaried-day-row";
 import HolidayElections from "./holiday-elections";
+import TimecardHistory from "./timecard-history";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -52,6 +53,7 @@ export default function SalariedTimecardView({
     salariedSummary,
     salariedWarnings,
     floatingHolidayBalance,
+    history,
   } = data;
 
   const period = card.pay_periods;
@@ -143,6 +145,15 @@ export default function SalariedTimecardView({
               </option>
             ))}
           </select>
+
+          <a
+            href={`/print?timecard=${card.id}`}
+            target="_blank"
+            rel="noopener"
+            className="text-sm text-[var(--accent)] hover:underline"
+          >
+            Print
+          </a>
 
           <StatusBadge status={card.status} />
         </div>
@@ -248,6 +259,8 @@ export default function SalariedTimecardView({
       {error && (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
+
+      <TimecardHistory history={history} isOwnCard={isOwnCard} />
 
       {isOwnCard && !isExported && (
         <Panel title="Approval">

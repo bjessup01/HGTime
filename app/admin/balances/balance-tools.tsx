@@ -121,7 +121,7 @@ export default function BalanceTools() {
               <input
                 name="hours"
                 type="number"
-                step="0.01"
+                step="0.25"
                 required
                 className={inputClass}
               />

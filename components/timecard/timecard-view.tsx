@@ -10,6 +10,7 @@ import { summarize } from "@/lib/timecard-calc";
 import { Panel, Button, Badge, selectClass } from "@/components/ui";
 import DayRow from "./day-row";
 import HolidayElections from "./holiday-elections";
+import TimecardHistory from "./timecard-history";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -44,7 +45,7 @@ export default function TimecardView({
   const [error, setError] = useState<string | null>(null);
 
   const { card, scaffold, entries, days, warnings, holidaySummary,
-          conversions, otPreview, floatingHolidayBalance } = data;
+          conversions, otPreview, floatingHolidayBalance , history } = data;
   const period = card.pay_periods;
   const totals = summarize(entries);
 
@@ -126,6 +127,15 @@ export default function TimecardView({
               </option>
             ))}
           </select>
+
+          <a
+            href={`/print?timecard=${card.id}`}
+            target="_blank"
+            rel="noopener"
+            className="text-sm text-[var(--accent)] hover:underline"
+          >
+            Print
+          </a>
 
           <StatusBadge status={card.status} />
         </div>
@@ -268,6 +278,8 @@ export default function TimecardView({
       {error && (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
+
+      <TimecardHistory history={history} isOwnCard={isOwnCard} />
 
       {isOwnCard && !isExported && (
         <Panel title="Approval">

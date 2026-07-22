@@ -56,8 +56,7 @@ export async function importBalances(
   let imported = 0;
   const errors: string[] = [];
 
-  for (let i = 0; i < rows.length; i++) {
-    const line = rows[i];
+  for (const [i, line] of rows.entries()) {
     const cells = line.split(",").map((c) => c.trim());
     const employeeNumber = cells[0];
     if (!employeeNumber) continue;

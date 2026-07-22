@@ -320,3 +320,189 @@ give yourself vacation above 160:
 That's the both-banks-over case: 40h vacation forfeited on 3/31 (sick already
 full), 60h sick converts to 20h vacation on 4/1, ending at 180 vacation / 480
 sick.
+
+---
+
+# Year-end conversion report
+
+## Run the migration
+
+`supabase/migrations/0012_year_end_report.sql`
+
+Also fixes the 3:1 conversion to allow partial hours — balances are not
+quarter-hour rounded, so 61h over the cap yields 20.33h vacation and consumes
+the full 61h.
+
+## `/admin/year-end` — two views
+
+**Monitor** — the monthly view. Who is trending over the vacation limit, by how
+much, and how much would be lost. Run this from January onward; employees see
+their own projection on their dashboard, so this is for tracking rather than
+notification.
+
+**Payroll entry** — the 3/31 and 4/1 view. One row per employee needing an
+adjustment, with a CSV export.
+
+## The two numbers
+
+The report shows both, and they are not the same:
+
+- **Employee ends** — what the employee actually has after conversion
+- **Enter vac / Enter sick** — what payroll types into the payroll system
+
+They differ when time off is entered here that payroll has not processed. The
+3/26–4/10 period is still open on 4/1, so payroll will subtract those hours when
+it runs. The entry value pre-adds them.
+
+Worked example, verified:
+
+```
+snapshot 3/31        180 vacation
+used 3/26            10 hours (entered here, not yet processed)
+true balance         170
+cap                  160  ->  10h over, forfeited (sick full)
+employee ends at     160
+PAYROLL ENTERS       170   (160 + 10 pending)
+period runs, -10h -> 160   correct
+```
+
+Entering 160 instead would land the employee at 150 — the pending hours
+subtracted twice. The blue notice appears whenever any employee has pending
+hours, so this is visible rather than assumed.
+
+## Saving a run
+
+"Save run" writes the current figures to `year_end_runs` / `year_end_results`.
+Payroll keys from the screen or CSV; the saved run is the record of what the
+numbers were at that moment, which matters if anything is questioned later.
+
+---
+
+# Audit view
+
+## Run the migration
+
+`supabase/migrations/0013_audit_view.sql`
+
+## Two places
+
+**On every timecard** — a "Change history" section below the card. Shows who
+changed what, from what to what, and when. Visible to the employee, their
+supervisors, and payroll admins. This is how an employee finds out a supervisor
+edited their time: it's on the card, where they'd look, rather than a separate
+notification.
+
+**`/admin/audit`** — searchable across everyone. Filter by date range, employee,
+or who made the change. Payroll admin only.
+
+## What it shows
+
+Four things, per your spec: **who**, **what it was**, **what it is now**,
+**when**. The raw log stores full before/after JSON; the view translates that
+into readable lines:
+
+```
+4/9 2:15pm   Karen Larsell   changed   Tue 4/7   WHPEDAV   8h → 9h
+```
+
+Automatic changes are hidden by default — holiday hours recalculate whenever
+worked hours change, so one employee edit can cascade into several log rows.
+The "Show automatic changes" toggle reveals them when you need to understand
+why a holiday figure moved.
+
+Changes made by someone other than the card's owner are tagged, and the count
+appears above the table.
+
+## Retention
+
+Manual purge on a rolling two-calendar-year window: the current year and the
+prior full year are kept. Running in 2027 removes anything before 1/1/2026.
+
+The purge screen shows how many records are eligible before you commit, and the
+confirmation states plainly that only change history is removed — timecards,
+hours, overtime, balances, and year-end results are never touched.
+
+---
+
+# Printable timecards
+
+## Run the migration
+
+`supabase/migrations/0014_print.sql`
+
+## Where
+
+- **`/approvals`** → "Print approved" prints every supervisor-approved card for
+  the period, one per page, in a single document.
+- **Any timecard** → "Print" link in the header prints just that card.
+
+Both open in a new tab with a Print button. Choose "Save as PDF" as the
+destination in the browser's print dialog.
+
+## Layout
+
+Matches the existing payroll report:
+
+- Header with employee number, name, date range, overtime period, print
+  timestamp, and work codes used
+- Detail lines with the date printed once per day and work codes stacked
+  beneath when a day has several
+- Prior-period rows from the same workweek marked with `*` and excluded from
+  period totals — they appear only so the overtime arithmetic is visible
+- Workweek block (Sunday–Saturday) with total, regular, and overtime per week
+- Time-off lines with the three payroll buckets: Vacation, Sick, Other
+- Footnote explaining the asterisk, shown only when prior rows exist
+
+**Salaried cards** print differently, matching the sample: one line for the
+default work code at 80 hours, "Default Regular Hours 80.00", and Total Hours
+80.00 regardless of time off. Time off is listed and totalled separately since
+it does not add to the 80. No punch columns, no workweek block.
+
+## Approval lines
+
+Two signature lines, each with the name and approval timestamp:
+
+```
+Employee:       BRAXTON JESSUP        Date: 04/12/26 23:32:15
+Authorized By:  STEVE LUITEN          Date: 04/13/26 07:41:33
+```
+
+Names fill in from the approval records; a card approved by neither prints blank
+lines for signing by hand.
+
+## Notes
+
+- **Family Care exports under Sick**, matching the bucket configuration. The
+  separate "FAMILY CAR Hours" line in the current system is a bug and is not
+  reproduced.
+- Punch times print as `00:00 AM` when hours were entered directly rather than
+  as clock times, matching current behaviour.
+
+## Holiday notes on printed cards
+
+Migration: `supabase/migrations/0015_print_notes.sql`
+
+A boxed NOTE section prints below the footnote whenever a holiday needs the
+processor's attention. Three cases:
+
+**Double time** — names the work code and hours to pay at double rate. The
+detail table shows two lines under the same code, so the note says which:
+
+```
+NOTE: 04/03/2026 Good Friday — worked 2 hrs, elected DOUBLE TIME.
+      2 hrs under WHPEHAR to be paid at double rate.
+```
+
+**Floating holiday** — informational; the app already banked the hours, but the
+choice is recorded so the processor knows it was deliberate.
+
+**4×10 conversion** — explains why holiday hours are absent, which would
+otherwise look like an error against a prior period:
+
+```
+NOTE: 04/03/2026 Good Friday — worked 4 days this week, holiday converted
+      to floating holiday (10 hrs banked).
+```
+
+Salaried cards say "floating holiday added" rather than "elected," since
+salaried employees are never offered the choice.

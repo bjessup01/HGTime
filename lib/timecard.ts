@@ -161,6 +161,7 @@ export async function loadTimecard(timecardId: string) {
     { data: salariedDays },
     { data: salariedSummary },
     { data: salariedWarnings },
+    { data: history },
   ] = await Promise.all([
     sb.rpc("timecard_days_scaffold", {
       p_employee_id: card.employee_id,
@@ -183,6 +184,10 @@ export async function loadTimecard(timecardId: string) {
     sb.rpc("salaried_day_status", { p_timecard_id: timecardId }),
     sb.rpc("salaried_summary", { p_timecard_id: timecardId }),
     sb.rpc("salaried_warnings", { p_timecard_id: timecardId }),
+    sb.rpc("timecard_history", {
+      p_timecard_id: timecardId,
+      p_include_system: false,
+    }),
   ]);
 
   return {
@@ -198,6 +203,7 @@ export async function loadTimecard(timecardId: string) {
     salariedDays: (salariedDays as SalariedDay[]) ?? [],
     salariedSummary: (salariedSummary as any[])?.[0] ?? null,
     salariedWarnings: (salariedWarnings as Warning[]) ?? [],
+    history: (history as any[]) ?? [],
   };
 }
 
