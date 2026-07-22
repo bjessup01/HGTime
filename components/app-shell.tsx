@@ -8,10 +8,12 @@ export default async function AppShell({ children }: { children: React.ReactNode
   const isSupervisor = user.role === "supervisor" || isAdmin;
 
   const links = [
-    { href: "/dashboard", label: "My time", show: true },
+    { href: "/dashboard", label: "Home", show: true },
+    { href: "/timecard", label: "My time", show: true },
     { href: "/approvals", label: "Approvals", show: isSupervisor },
     { href: "/admin/employees", label: "Employees", show: isAdmin },
     { href: "/admin/work-codes", label: "Work codes", show: isAdmin },
+    { href: "/admin/balances", label: "Balances", show: isAdmin },
     { href: "/admin/networks", label: "Networks", show: isAdmin },
   ].filter((l) => l.show);
 

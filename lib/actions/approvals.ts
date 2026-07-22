@@ -18,6 +18,7 @@ export async function approveAsSupervisor(timecardId: string): Promise<Result> {
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/approvals");
+  revalidatePath("/timecard");
   revalidatePath("/dashboard");
   return { ok: true, message: "Timecard approved." };
 }
@@ -34,6 +35,7 @@ export async function unapproveAsSupervisor(timecardId: string): Promise<Result>
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/approvals");
+  revalidatePath("/timecard");
   revalidatePath("/dashboard");
   return { ok: true, message: "Approval withdrawn." };
 }

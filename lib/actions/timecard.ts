@@ -136,6 +136,7 @@ export async function addEntry(formData: FormData): Promise<Result> {
   // Worked hours reduce holiday pay, so re-derive after every change.
   await sb.rpc("apply_holiday_entries", { p_timecard_id: timecardId });
 
+  revalidatePath("/timecard");
   revalidatePath("/dashboard");
   return { ok: true };
 }
@@ -175,6 +176,7 @@ export async function updateEntry(formData: FormData): Promise<Result> {
   if (error) return { ok: false, error: error.message };
 
   await sb.rpc("apply_holiday_entries", { p_timecard_id: entry.timecard_id });
+  revalidatePath("/timecard");
   revalidatePath("/dashboard");
   return { ok: true };
 }
@@ -205,6 +207,7 @@ export async function deleteEntry(entryId: string): Promise<Result> {
   if (error) return { ok: false, error: error.message };
 
   await sb.rpc("apply_holiday_entries", { p_timecard_id: entry.timecard_id });
+  revalidatePath("/timecard");
   revalidatePath("/dashboard");
   return { ok: true };
 }
@@ -234,6 +237,7 @@ export async function setHolidayElection(
     .eq("work_date", workDate)
     .eq("kind", "work");
 
+  revalidatePath("/timecard");
   revalidatePath("/dashboard");
   return { ok: true };
 }
@@ -254,6 +258,7 @@ export async function setShuttleIncentive(
   );
 
   if (error) return { ok: false, error: error.message };
+  revalidatePath("/timecard");
   revalidatePath("/dashboard");
   return { ok: true };
 }
@@ -280,6 +285,7 @@ export async function approveAsEmployee(timecardId: string): Promise<Result> {
 
   if (error) return { ok: false, error: error.message };
 
+  revalidatePath("/timecard");
   revalidatePath("/dashboard");
   return { ok: true, message: "Timecard approved." };
 }
@@ -301,6 +307,7 @@ export async function unapproveAsEmployee(timecardId: string): Promise<Result> {
     .eq("status", "employee_approved");
 
   if (error) return { ok: false, error: error.message };
+  revalidatePath("/timecard");
   revalidatePath("/dashboard");
   return { ok: true };
 }
@@ -323,6 +330,7 @@ export async function confirmSalariedDay(
 
   if (error) return { ok: false, error: error.message };
 
+  revalidatePath("/timecard");
   revalidatePath("/dashboard");
   return { ok: true };
 }
@@ -345,6 +353,7 @@ export async function confirmRemainingDays(
 
   if (error) return { ok: false, error: error.message };
 
+  revalidatePath("/timecard");
   revalidatePath("/dashboard");
   const n = Number(data ?? 0);
   return {

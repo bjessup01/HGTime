@@ -254,3 +254,69 @@ select change_assignment(
 
 Then reload `/dashboard`. Try: confirming one day individually, sweeping the
 rest, adding a half-day of vacation, and recording hours on Good Friday (4/3).
+
+---
+
+# Phase 4.5 — Employee dashboard and balances
+
+## Run the migration
+
+`supabase/migrations/0011_dashboard_balances.sql`
+
+## Routing change
+
+`/dashboard` is now the **home page** — the portal front door. The timecard
+moved to `/timecard`. Signing in lands on the dashboard, which shows the
+current period status and an "Enter my time" button.
+
+## The dashboard shows
+
+- **Current pay period** — dates, approval status, count of items needing
+  attention, and a link straight to the card
+- **Vacation, sick, and floating holiday balances**. Vacation and sick come
+  from payroll imports; the card shows the imported figure less any time off
+  entered here since the snapshot date, so the number reflects what is actually
+  available rather than a stale import.
+- **Year-end projection** — how much vacation is above the carryover limit and
+  what happens to it, with the full two-step conversion shown
+
+## Year-end projection
+
+Uses the rules we worked out, verified against every case:
+
+- **Step 1 (end of 3/31)** — vacation over 160 converts to sick 1:1 up to the
+  480 sick cap; anything still over is forfeited. Sick already full means all
+  excess vacation is forfeited outright.
+- **Step 2 (4/1)** — sick over 480 converts to vacation at 3:1, applied after
+  the truncation, so vacation can exceed 160 on April 1.
+
+The projection closes the gap payroll can't see: the imported snapshot is stale
+for 3/26–3/31 because that period hasn't processed. This app owns those entries,
+so `projected = snapshot − time off entered since the snapshot date`.
+
+**One thing to confirm:** the 3:1 conversion produces whole vacation hours only.
+31 sick hours over the cap yields 10 vacation hours (30 consumed), with 1 hour
+remaining in sick. Check that matches how payroll handles the remainder.
+
+## Balances (`/admin/balances`)
+
+**Import** — paste CSV as `employee_number, vacation, sick`. A header row is
+detected and skipped. Blank cells are skipped rather than zeroed, so a
+vacation-only file won't wipe sick balances. Re-importing the same date corrects
+rather than duplicates.
+
+**Single correction** — one employee, one bank, with an optional note. Tagged
+`manual` in the list so corrections are distinguishable from imports.
+
+## Testing
+
+Import a few balances, then check the dashboard. To see the year-end warning,
+give yourself vacation above 160:
+
+```
+446,200,540
+```
+
+That's the both-banks-over case: 40h vacation forfeited on 3/31 (sick already
+full), 60h sick converts to 20h vacation on 4/1, ending at 180 vacation / 480
+sick.

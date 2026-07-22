@@ -182,7 +182,7 @@ export default function ApprovalQueue({
                 </td>
                 <td className="py-3 pr-4">
                   <Link
-                    href={`/dashboard?employee=${q.employee_id}`}
+                    href={`/timecard?employee=${q.employee_id}`}
                     className="text-[var(--accent)] hover:underline"
                   >
                     {q.first_name} {q.last_name}
@@ -242,7 +242,7 @@ export default function ApprovalQueue({
               <tr key={q.timecard_id} className="border-b border-[var(--line)] last:border-0">
                 <td className="py-3 pr-4">
                   <Link
-                    href={`/dashboard?employee=${q.employee_id}`}
+                    href={`/timecard?employee=${q.employee_id}`}
                     className="text-[var(--accent)] hover:underline"
                   >
                     {q.first_name} {q.last_name}
@@ -288,7 +288,7 @@ export default function ApprovalQueue({
               <tr key={q.timecard_id} className="border-b border-[var(--line)] last:border-0">
                 <td className="py-3 pr-4">
                   <Link
-                    href={`/dashboard?employee=${q.employee_id}`}
+                    href={`/timecard?employee=${q.employee_id}`}
                     className="text-[var(--accent)] hover:underline"
                   >
                     {q.first_name} {q.last_name}

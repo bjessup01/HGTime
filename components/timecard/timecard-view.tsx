@@ -116,7 +116,7 @@ export default function TimecardView({
             onChange={(e) => {
               const params = new URLSearchParams(window.location.search);
               params.set("period", e.target.value);
-              router.push(`/dashboard?${params.toString()}`);
+              router.push(`/timecard?${params.toString()}`);
             }}
             className={selectClass + " w-auto py-2 text-sm"}
           >
