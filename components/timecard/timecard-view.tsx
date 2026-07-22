@@ -6,7 +6,7 @@ import {
   approveAsEmployee,
   unapproveAsEmployee,
 } from "@/lib/actions/timecard";
-import { summarize, weeklyTotals } from "@/lib/timecard-calc";
+import { summarize } from "@/lib/timecard-calc";
 import { Panel, Button, Badge, selectClass } from "@/components/ui";
 import DayRow from "./day-row";
 import HolidayElections from "./holiday-elections";
@@ -43,10 +43,10 @@ export default function TimecardView({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const { card, scaffold, entries, days, warnings, holidaySummary, conversions } = data;
+  const { card, scaffold, entries, days, warnings, holidaySummary,
+          conversions, otPreview, floatingHolidayBalance } = data;
   const period = card.pay_periods;
   const totals = summarize(entries);
-  const weeks = weeklyTotals(entries, period.start_date, period.end_date);
 
   const entriesByDate = new Map<string, any[]>();
   for (const e of entries) {
@@ -206,6 +206,11 @@ export default function TimecardView({
             <div className="border-t border-[var(--line)] pt-2">
               <Row label="Total" value={totals.total} bold />
             </div>
+            {floatingHolidayBalance > 0 && (
+              <div className="border-t border-[var(--line)] pt-2 text-[var(--muted)]">
+                <Row label="Floating holiday balance" value={floatingHolidayBalance} />
+              </div>
+            )}
           </dl>
         </Panel>
 
@@ -213,32 +218,44 @@ export default function TimecardView({
           title="By workweek"
           description="Sunday–Saturday. Holiday hours count toward overtime; other time-off codes do not."
         >
-          {weeks.length === 0 ? (
+          {otPreview.length === 0 ? (
             <p className="text-sm text-[var(--muted)]">No hours entered yet.</p>
           ) : (
-            <div className="space-y-3">
-              {weeks.map((w: any) => (
-                <div key={w.week} className="text-sm">
+            <div className="space-y-4">
+              {otPreview.map((w: any) => (
+                <div key={w.week_start} className="text-sm">
                   <div className="flex items-center justify-between">
                     <span className="font-medium">
-                      Week of {fmtDate(w.week).replace(/^\w+ /, "")}
-                      {w.partial && (
+                      Week of {fmtDate(w.week_start).replace(/^\w+ /, "")}
+                      {w.is_split_week && (
                         <span className="ml-2">
-                          <Badge tone="neutral">split week</Badge>
+                          <Badge tone="neutral">
+                            {w.settles_here ? "week ends here" : "continues next period"}
+                          </Badge>
                         </span>
                       )}
                     </span>
                     <span className="tabular-nums">
-                      {w.regular}
-                      {w.overtime > 0 && (
-                        <span className="ml-2 text-amber-700">+{w.overtime} OT</span>
+                      {Number(w.this_regular)}
+                      {Number(w.this_ot) > 0 && (
+                        <span className="ml-2 text-amber-700">
+                          +{Number(w.this_ot)} OT
+                        </span>
                       )}
                     </span>
                   </div>
-                  {w.partial && (
+
+                  {(Number(w.prior_regular) > 0 || Number(w.prior_ot) > 0) && (
                     <p className="mt-1 text-xs text-[var(--muted)]">
-                      This week crosses the period boundary. Overtime is settled on
-                      the period containing the week&apos;s end.
+                      {Number(w.prior_regular) + Number(w.prior_ot)}h already paid last
+                      period. Full week: {Number(w.week_total)}h.
+                    </p>
+                  )}
+
+                  {w.is_split_week && !w.settles_here && (
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      This week continues into the next period. Any overtime is
+                      calculated and paid there, once the full week is known.
                     </p>
                   )}
                 </div>

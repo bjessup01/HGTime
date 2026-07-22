@@ -304,3 +304,52 @@ export async function unapproveAsEmployee(timecardId: string): Promise<Result> {
   revalidatePath("/dashboard");
   return { ok: true };
 }
+
+/** Confirm (or unconfirm) a single salaried day as worked normally. */
+export async function confirmSalariedDay(
+  timecardId: string,
+  workDate: string,
+  confirmed: boolean
+): Promise<Result> {
+  const guard = await guardTimecardWrite(timecardId);
+  if (!guard.ok) return guard;
+
+  const sb = supabaseServer();
+  const { error } = await sb.rpc("confirm_salaried_day", {
+    p_timecard_id: timecardId,
+    p_work_date: workDate,
+    p_confirmed: confirmed,
+  });
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+/**
+ * Confirm every remaining scheduled day at once.
+ * Days already carrying time off or holiday work are skipped — those were
+ * handled explicitly and should not be swept over.
+ */
+export async function confirmRemainingDays(
+  timecardId: string
+): Promise<Result & { confirmed?: number }> {
+  const guard = await guardTimecardWrite(timecardId);
+  if (!guard.ok) return guard;
+
+  const sb = supabaseServer();
+  const { data, error } = await sb.rpc("confirm_remaining_salaried_days", {
+    p_timecard_id: timecardId,
+  });
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/dashboard");
+  const n = Number(data ?? 0);
+  return {
+    ok: true,
+    confirmed: n,
+    message: n === 0 ? "Nothing left to confirm." : `Confirmed ${n} day${n === 1 ? "" : "s"}.`,
+  };
+}

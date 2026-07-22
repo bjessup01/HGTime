@@ -151,3 +151,106 @@ server imports, so client components can use them. `lib/timecard.ts` holds
 the Supabase queries and imports `next/headers` — server-only. Keep new
 calculation helpers in `timecard-calc.ts` or client components will fail to
 compile.
+
+---
+
+# Phase 4 — Overtime and supervisor approvals
+
+## Run the migrations
+
+In the Supabase SQL Editor, in order:
+
+1. `supabase/migrations/0008_phase3_fixes.sql` — captures the three fixes you
+   ran by hand during Phase 3, so the files match the database. Safe to re-run.
+2. `supabase/migrations/0009_overtime.sql` — OT settlement, floating holiday
+   ledger, supervisor approval.
+
+## What's new
+
+**`/approvals`** — the supervisor queue. Three sections: waiting for approval,
+not yet employee-approved (approvable anyway), and already approved. Bulk
+approve via checkboxes, or one at a time. Click any name to open their card.
+
+**Overtime settlement** with split-week lookback. For each Sunday–Saturday
+week, the system totals hours across every period that touches it, subtracts
+what was already paid, and splits the remainder at the 40-hour line. Verified
+against both worked examples:
+
+- 20h in period A, 25h more in period B (45 total) → B pays 20 regular + 5 OT
+- 42h in period A (40 reg + 2 OT), 30h more in B (72 total) → B pays 30 OT
+
+**Floating holidays post at supervisor approval**, not before — an open card
+shouldn't move balances. Two sources: hours worked on a holiday (salaried
+always, hourly when elected), and 4×10 Friday conversions.
+
+**Withdrawing approval reverses the ledger** — both the workweek rows and the
+floating holiday postings — so a correction doesn't leave orphaned balances.
+
+**The timecard now shows real OT**, calculated server-side with the full
+cross-period picture rather than the earlier client-side approximation. Split
+weeks say whether OT settles in this period or the next.
+
+## Testing overtime
+
+The 3/26–4/10 semi-monthly period ends Friday 4/10, so the week of 4/5–4/11
+straddles the boundary — ideal for testing arrears.
+
+1. Enter enough hours in 3/26–4/10 to exceed 40 in a single week → OT appears
+2. Enter hours in the week that crosses into 4/11–4/25 → the first period shows
+   "continues next period," the second settles the OT
+3. Approve as supervisor, then check `workweek_ledger` — one row per week per
+   period, showing exactly what each paid
+
+## Still to come
+
+- Phase 5: export, audit view, year-end conversion report
+- Salaried entry path (confirm-remaining sweep)
+
+---
+
+# Salaried entry path
+
+## Run the migration
+
+`supabase/migrations/0010_salaried.sql` in the SQL Editor.
+
+## How it works
+
+Salaried employees get a different card entirely — routed automatically by
+employee type. They are paid a flat 80 hours per period, so the card collects
+**exceptions**, not hours.
+
+Each scheduled day is in one of three states:
+
+- **Pending** (amber) — needs attention. Nothing recorded, not yet confirmed.
+- **Confirmed** (green) — employee checked "worked as scheduled."
+- **Exception** (white) — has time off or holiday work recorded explicitly.
+
+**"Confirm remaining days"** sweeps every pending day at once — the one-click
+path for a period with no exceptions. Days already carrying time off or holiday
+work are skipped, so the sweep can't paper over something handled deliberately.
+
+Confirmation is stored on `timecard_days`, not as an entry. The export emits the
+flat 80 plus time off; confirmation is the audit trail showing the employee
+actively reviewed each day rather than approving an empty card by inertia.
+
+**Partial days** work as expected: record 4h vacation on a 9h day, then confirm
+the rest as worked.
+
+**Holiday work** uses the same rules as hourly — hours beyond the expected
+portion reduce holiday pay and bank floating holiday time. Salaried never get
+the double-time choice; it's always floating holiday.
+
+## Testing
+
+Switch an employee to salaried, or use your own record:
+
+```sql
+select change_assignment(
+  (select id from employees where employee_number = '446'),
+  '2026-07-01', 'semi_monthly', 'salaried', '4x9+4', 'ITXAWAT', true
+);
+```
+
+Then reload `/dashboard`. Try: confirming one day individually, sweeping the
+rest, adding a half-day of vacation, and recording hours on Good Friday (4/3).

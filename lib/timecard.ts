@@ -37,6 +37,31 @@ export type ConversionCheck = {
   friday_worked: boolean;
 };
 
+export type SalariedDay = {
+  work_date: string;
+  scheduled_hours: number;
+  is_scheduled_day: boolean;
+  is_employed: boolean;
+  holiday_hours: number;
+  holiday_name: string | null;
+  entry_hours: number;
+  worked_hours: number;
+  time_off_hours: number;
+  confirmed: boolean;
+  status: "confirmed" | "exception" | "pending" | "not_scheduled" | "not_employed";
+};
+
+export type OtPreview = {
+  week_start: string;
+  week_total: number;
+  prior_regular: number;
+  prior_ot: number;
+  this_regular: number;
+  this_ot: number;
+  is_split_week: boolean;
+  settles_here: boolean;
+};
+
 export type TimecardDay = {
   timecard_id: string;
   work_date: string;
@@ -131,6 +156,11 @@ export async function loadTimecard(timecardId: string) {
     { data: warnings },
     { data: holidaySummary },
     { data: conversions },
+    { data: otPreview },
+    { data: fhBalance },
+    { data: salariedDays },
+    { data: salariedSummary },
+    { data: salariedWarnings },
   ] = await Promise.all([
     sb.rpc("timecard_days_scaffold", {
       p_employee_id: card.employee_id,
@@ -148,6 +178,11 @@ export async function loadTimecard(timecardId: string) {
     sb.rpc("timecard_warnings", { p_timecard_id: timecardId }),
     sb.rpc("holiday_work_summary", { p_timecard_id: timecardId }),
     sb.rpc("holiday_conversion_check", { p_timecard_id: timecardId }),
+    sb.rpc("timecard_ot_preview", { p_timecard_id: timecardId }),
+    sb.rpc("floating_holiday_balance", { p_employee_id: card.employee_id }),
+    sb.rpc("salaried_day_status", { p_timecard_id: timecardId }),
+    sb.rpc("salaried_summary", { p_timecard_id: timecardId }),
+    sb.rpc("salaried_warnings", { p_timecard_id: timecardId }),
   ]);
 
   return {
@@ -158,6 +193,11 @@ export async function loadTimecard(timecardId: string) {
     warnings: (warnings as Warning[]) ?? [],
     holidaySummary: (holidaySummary as HolidaySummary[]) ?? [],
     conversions: (conversions as ConversionCheck[]) ?? [],
+    otPreview: (otPreview as OtPreview[]) ?? [],
+    floatingHolidayBalance: Number(fhBalance ?? 0),
+    salariedDays: (salariedDays as SalariedDay[]) ?? [],
+    salariedSummary: (salariedSummary as any[])?.[0] ?? null,
+    salariedWarnings: (salariedWarnings as Warning[]) ?? [],
   };
 }
 

@@ -10,6 +10,7 @@ import {
 } from "@/lib/timecard";
 import { supabaseServer } from "@/lib/supabase";
 import TimecardView from "@/components/timecard/timecard-view";
+import SalariedTimecardView from "@/components/timecard/salaried-timecard-view";
 import { Panel } from "@/components/ui";
 
 export default async function DashboardPage({
@@ -107,6 +108,27 @@ export default async function DashboardPage({
   const isOwnCard = targetId === user.id;
   const isPrivileged =
     user.role === "supervisor" || user.role === "payroll_admin";
+  const isSalaried = target.employee_type === "salaried";
+
+  // Salaried employees confirm days rather than entering hours, so they
+  // get a different card entirely.
+  if (isSalaried) {
+    return (
+      <AppShell>
+        <SalariedTimecardView
+          data={data}
+          codes={codes}
+          periods={periods}
+          currentPeriodId={period.id}
+          isOwnCard={isOwnCard}
+          canEdit={entryPermission.allowed || isPrivileged}
+          networkBlocked={!entryPermission.allowed && isOwnCard}
+          viewingName={targetName}
+          scheduleCode={target.schedule_code}
+        />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
@@ -115,7 +137,7 @@ export default async function DashboardPage({
         codes={codes}
         periods={periods}
         currentPeriodId={period.id}
-        isSalaried={target.employee_type === "salaried"}
+        isSalaried={false}
         isOwnCard={isOwnCard}
         canEdit={entryPermission.allowed || isPrivileged}
         networkBlocked={!entryPermission.allowed && isOwnCard}
