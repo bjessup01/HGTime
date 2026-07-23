@@ -5,6 +5,8 @@ import { requireAdmin } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase";
 import { Panel, Table, Badge, Empty } from "@/components/ui";
 import ResetPinButton from "./reset-pin-button";
+import EmployeeFlags from "./employee-flags";
+import AccrualRates from "./accrual-rates";
 import SupervisorManager from "./supervisor-manager";
 import CodeSelector from "./code-selector";
 
@@ -19,6 +21,12 @@ const TYPE_LABEL: Record<string, string> = {
 export default async function EmployeeDetail({ params }: { params: { id: string } }) {
   await requireAdmin();
   const sb = supabaseServer();
+
+  const { data: rates } = await sb
+    .from("accrual_rates")
+    .select("*")
+    .eq("employee_id", params.id)
+    .order("effective_from", { ascending: false });
 
   const { data: employee } = await sb
     .from("employee_current")
@@ -74,6 +82,10 @@ export default async function EmployeeDetail({ params }: { params: { id: string 
             {employee.original_hire_date && ` · original hire ${employee.original_hire_date}`}
           </p>
         </div>
+
+        <EmployeeFlags employee={employee} />
+
+        <AccrualRates employeeId={employee.id} rates={rates ?? []} />
 
         <Panel
           title="Login"

@@ -231,6 +231,7 @@ export async function loadEmployeeCodes(employeeId: string) {
     { data: workCodes },
     { data: timeOffCodes },
     { data: shuttleLevels },
+    { data: fhAvailable },
     { data: assignment },
   ] = await Promise.all([
     sb
@@ -248,6 +249,7 @@ export async function loadEmployeeCodes(employeeId: string) {
       .select("*")
       .eq("active", true)
       .order("sort_order"),
+    sb.rpc("floating_holiday_available", { p_employee_id: employeeId }),
     sb
       .from("employee_current")
       .select("default_work_code_id")
@@ -266,5 +268,6 @@ export async function loadEmployeeCodes(employeeId: string) {
       .filter((c: any) => c && !c.payroll_admin_only),
     shuttleLevels: shuttleLevels ?? [],
     defaultWorkCodeId: assignment?.default_work_code_id ?? null,
+    floatingHolidayAvailable: Number(fhAvailable ?? 0),
   };
 }

@@ -84,12 +84,14 @@ export default async function DashboardPage() {
           <BalanceCard
             label="Vacation"
             balance={Number(d?.vacation_balance ?? 0)}
+            available={Number(d?.vacation_available ?? 0)}
             asOf={d?.vacation_as_of}
             pending={Number(d?.vacation_pending ?? 0)}
           />
           <BalanceCard
             label="Sick"
             balance={Number(d?.sick_balance ?? 0)}
+            available={Number(d?.sick_available ?? 0)}
             asOf={d?.sick_as_of}
             pending={Number(d?.sick_pending ?? 0)}
           />
@@ -173,15 +175,19 @@ export default async function DashboardPage() {
 function BalanceCard({
   label,
   balance,
+  available,
   asOf,
   pending,
 }: {
   label: string;
   balance: number;
+  available: number;
   asOf: string | null;
   pending: number;
 }) {
-  const available = Math.max(balance - pending, 0);
+  // available already accounts for accrual earned since the snapshot
+  // and time off entered against it
+  const accrued = Math.max(available - balance + pending, 0);
 
   return (
     <Panel title={label}>
@@ -190,15 +196,13 @@ function BalanceCard({
         <span className="ml-1 text-base font-normal text-[var(--muted)]">hours</span>
       </p>
 
-      {pending > 0 && (
-        <p className="mt-2 text-xs text-[var(--muted)]">
-          {balance} on file, less {pending}h entered since
+      <div className="mt-2 space-y-0.5 text-xs text-[var(--muted)]">
+        <p>
+          {balance} on file as of {fmtDate(asOf)}
         </p>
-      )}
-
-      <p className="mt-2 text-xs text-[var(--muted)]">
-        As of {fmtDate(asOf)}
-      </p>
+        {accrued > 0 && <p>plus {Math.round(accrued * 100) / 100}h accrued since</p>}
+        {pending > 0 && <p>less {pending}h already entered</p>}
+      </div>
     </Panel>
   );
 }
@@ -215,6 +219,22 @@ function ProjectionDetail({ ye }: { ye: any }) {
       <p className="mb-3 font-medium">What happens if nothing changes</p>
 
       <dl className="space-y-2">
+        <Line
+          label="Balance on file"
+          value={`${Number(ye.snapshot_vacation)}h vacation · ${Number(
+            ye.snapshot_sick
+          )}h sick`}
+        />
+
+        {(Number(ye.accrual_vacation) > 0 || Number(ye.accrual_sick) > 0) && (
+          <Line
+            label={`Accrues by ${fmtDate(ye.fiscal_year_end)} if no time is taken`}
+            value={`+${Number(ye.accrual_vacation)}h vacation · +${Number(
+              ye.accrual_sick
+            )}h sick`}
+          />
+        )}
+
         <Line
           label={`Projected balance on ${fmtDate(ye.fiscal_year_end)}`}
           value={`${Number(ye.projected_vacation)}h vacation · ${Number(
@@ -261,8 +281,9 @@ function ProjectionDetail({ ye }: { ye: any }) {
       </dl>
 
       <p className="mt-3 text-xs text-[var(--muted)]">
-        This is an estimate based on your current balance and any time off already
-        entered. Payroll confirms the final numbers.
+        {ye.has_accrual_rate
+          ? "This is an estimate based on your current balance, what you accrue between now and then, and any time off already entered. Payroll confirms the final numbers."
+          : "This is an estimate based on your current balance and time off already entered. It does not include future accrual. Payroll confirms the final numbers."}
       </p>
     </div>
   );

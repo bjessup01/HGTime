@@ -362,3 +362,64 @@ export async function confirmRemainingDays(
     message: n === 0 ? "Nothing left to confirm." : `Confirmed ${n} day${n === 1 ? "" : "s"}.`,
   };
 }
+
+/** Preview which days a range application would fill. */
+export async function previewRangeTimeOff(
+  timecardId: string,
+  from: string,
+  to: string
+) {
+  await requireUser();
+  const sb = supabaseServer();
+
+  const { data, error } = await sb.rpc("preview_range_time_off", {
+    p_timecard_id: timecardId,
+    p_from: from,
+    p_to: to,
+  });
+
+  if (error) return { ok: false as const, error: error.message };
+  return { ok: true as const, days: (data as any[]) ?? [] };
+}
+
+/**
+ * Apply a time-off code across a date range at each day's scheduled
+ * hours. Days that are unscheduled, already have time, or carry a
+ * holiday are skipped.
+ */
+export async function applyRangeTimeOff(
+  timecardId: string,
+  from: string,
+  to: string,
+  timeOffCodeId: string,
+  note: string
+): Promise<Result & { applied?: number }> {
+  const guard = await guardTimecardWrite(timecardId);
+  if (!guard.ok) return guard;
+
+  const sb = supabaseServer();
+  const { data, error } = await sb.rpc("apply_range_time_off", {
+    p_timecard_id: timecardId,
+    p_from: from,
+    p_to: to,
+    p_time_off_code_id: timeOffCodeId,
+    p_note: note || null,
+  });
+
+  if (error) return { ok: false, error: error.message };
+
+  await sb.rpc("apply_holiday_entries", { p_timecard_id: timecardId });
+
+  revalidatePath("/timecard");
+  revalidatePath("/dashboard");
+
+  const n = Number(data ?? 0);
+  return {
+    ok: true,
+    applied: n,
+    message:
+      n === 0
+        ? "No days were filled — check the preview for why."
+        : `Applied time off to ${n} day${n === 1 ? "" : "s"}.`,
+  };
+}

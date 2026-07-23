@@ -16,7 +16,7 @@ export default async function ApprovalsPage({
   const payrollType =
     (searchParams.payroll as "semi_monthly" | "bi_weekly") ?? "semi_monthly";
 
-  const periods = await recentPayPeriods(payrollType, 26);
+  const periods = await recentPayPeriods(payrollType);
   const period = searchParams.period
     ? periods.find((p) => p.id === searchParams.period) ??
       (await currentPayPeriod(payrollType))

@@ -545,3 +545,121 @@ The picker on the timecard and approvals screens previously showed only the
 current period and earlier. It now includes the next two upcoming periods, so
 time can be entered in advance — scheduled vacation, for instance — and a
 period that has just been generated is reachable before today falls inside it.
+
+---
+
+# Testing fixes
+
+## Run the migration
+
+`supabase/migrations/0017_testing_fixes.sql`
+
+## What changed
+
+**1. Approvals links keep the period.** Clicking an employee's name on
+`/approvals` now opens their card for the period you were looking at, not the
+current one.
+
+**2. Work codes are editable.** An Edit link on each row lets you fix a typo in
+the code or description.
+
+**3. Time entries are editable.** An Edit link on each entry opens it inline —
+hours, work code, start/end times, and note — instead of remove-and-re-add.
+Entering start and end times recalculates the hours, same as when adding.
+
+**4. Remote-entry checkbox is editable.** A Details panel on the employee page
+covers name, role, remote entry, and shuttle eligibility. Payroll type,
+employee type, and schedule stay on the assignment history, since those are
+effective-dated.
+
+**5. Floating holiday has its own code.** `FLOATHOL` is what an employee selects
+to spend banked hours, and the picker shows how many are available. The database
+rejects anything over the balance, counting both the ledger and hours already
+entered on open cards — so the same hours can't be spent twice.
+
+`HOL` is now system-generated only and has been removed from employee pickers.
+The migration gives `FLOATHOL` to everyone who previously had `HOL` allowed.
+
+Both export under the Other bucket, which is all the payroll system reads.
+
+**6. 24-hour daily cap.** A database trigger blocks any save that would push a
+day past 24 hours, counting worked and time-off hours together. This blocks
+rather than warns, since the result is never legitimate.
+
+**7. Time off across a date range.** A button above the day grid takes a date
+range and a code, then previews exactly what it will do before applying:
+
+```
+Will apply 27 hours across 3 days: Mon 7/20 (9h), Tue 7/21 (9h), Wed 7/22 (9h)
+Skipping Fri 7/24 — not scheduled
+```
+
+Days that aren't scheduled, already have time, or carry a holiday are skipped.
+
+---
+
+# Accrual rates
+
+## Run the migration
+
+`supabase/migrations/0018_accrual_rates.sql`
+
+## The model
+
+**The payroll system remains the source of truth**, for rates as well as
+balances. Rates are entered here manually, copied from payroll — this app never
+computes a tier, so it can never quietly disagree with payroll about what
+someone earns.
+
+Rates are used for exactly two things:
+
+1. **Capping entry** — an employee may use their imported balance plus accrual
+   earned since, and no more
+2. **Projecting the 3/31 balance** — "if you take no more time off, here's where
+   you land"
+
+Neither writes an accrued balance as truth. The next import corrects any drift.
+
+## Effective-dated
+
+Rates live on the employee page under "Accrual rates", each with an effective
+date. When someone crosses an anniversary, add a row rather than editing the old
+one — the projection then applies the old rate to periods before the change and
+the new rate after, which matters for anyone crossing a tier before 3/31.
+
+## Timing
+
+A period's accrual counts once the period has **started**. Payroll credits it at
+processing, so an employee working through the current period has earned it but
+payroll hasn't recorded it yet — that gap is exactly what this closes.
+
+Worked through with your example: 50h imported on 7/11, accruing 5.00/period.
+During the 7/11–7/25 period they may use **55h**. On 7/26 payroll processes and
+credits the 5; a fresh import shows 55, the 7/26 period has started, and
+available becomes 60.
+
+## Cap enforcement
+
+The daily-cap trigger now also checks banks. Entering more vacation or sick than
+available is rejected with the available figure named:
+
+```
+Only 55.00 vacation hours are available (balance plus accrual earned)
+```
+
+Employees with **no rate on file** fall back to the imported balance with no
+accrual added — the safe direction to be wrong in. The year-end report flags how
+many employees are in that state.
+
+## Dashboard
+
+Balance cards now show the usable figure with the arithmetic beneath:
+
+```
+55 hours
+50 on file as of 7/11/26
+plus 5h accrued since
+```
+
+The year-end projection adds an "Accrues by 3/31 if no time is taken" line, and
+says explicitly when a projection excludes accrual because no rate is on file.

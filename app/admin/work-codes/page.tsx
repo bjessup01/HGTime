@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase";
 import { Panel, Table, Badge, Empty } from "@/components/ui";
 import WorkCodeForm from "./work-code-form";
-import ToggleWorkCode from "./toggle-work-code";
+import WorkCodeRow from "./work-code-row";
 
 export default async function WorkCodesPage() {
   await requireAdmin();
@@ -42,16 +42,7 @@ export default async function WorkCodesPage() {
               }
             >
               {codes.map((c: any) => (
-                <tr key={c.id} className="border-b border-[var(--line)] last:border-0">
-                  <td className="py-3 pr-4 font-mono text-xs font-semibold">{c.code}</td>
-                  <td className="py-3 pr-4">{c.description}</td>
-                  <td className="py-3 pr-4">
-                    {c.active ? <Badge tone="good">Active</Badge> : <Badge>Inactive</Badge>}
-                  </td>
-                  <td className="py-3">
-                    <ToggleWorkCode id={c.id} active={c.active} />
-                  </td>
-                </tr>
+                <WorkCodeRow key={c.id} code={c} />
               ))}
             </Table>
           )}

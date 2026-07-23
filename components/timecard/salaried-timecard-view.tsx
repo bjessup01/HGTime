@@ -11,6 +11,7 @@ import { Panel, Button, Badge, selectClass } from "@/components/ui";
 import SalariedDayRow from "./salaried-day-row";
 import HolidayElections from "./holiday-elections";
 import TimecardHistory from "./timecard-history";
+import RangeTimeOff from "./range-time-off";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -238,6 +239,14 @@ export default function SalariedTimecardView({
           editable={editable}
         />
       )}
+
+      <RangeTimeOff
+        timecardId={card.id}
+        codes={codes}
+        periodStart={period.start_date}
+        periodEnd={period.end_date}
+        editable={editable}
+      />
 
       <Panel title="Days">
         <div className="space-y-2">

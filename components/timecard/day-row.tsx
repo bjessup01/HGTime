@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   addEntry,
+  updateEntry,
   deleteEntry,
   setShuttleIncentive,
 } from "@/lib/actions/timecard";
@@ -23,6 +24,7 @@ export default function DayRow({
 }: any) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [mode, setMode] = useState<"work" | "time_off">("work");
   const [useClock, setUseClock] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -41,6 +43,18 @@ export default function DayRow({
       else {
         setError(null);
         setAdding(false);
+        router.refresh();
+      }
+    });
+  }
+
+  function onUpdate(formData: FormData) {
+    startTransition(async () => {
+      const res = await updateEntry(formData);
+      if (!res.ok) setError(res.error);
+      else {
+        setError(null);
+        setEditingId(null);
         router.refresh();
       }
     });
@@ -129,7 +143,98 @@ export default function DayRow({
 
       {entries.length > 0 && (
         <ul className="mt-2 space-y-1.5">
-          {entries.map((e: any) => (
+          {entries.map((e: any) =>
+            editingId === e.id ? (
+              <li key={e.id}>
+                <form
+                  action={onUpdate}
+                  className="space-y-3 rounded-md border border-[var(--accent)] bg-white p-3"
+                >
+                  <input type="hidden" name="entry_id" value={e.id} />
+
+                  {e.kind === "work" && (
+                    <select
+                      name="work_code_id"
+                      defaultValue={e.work_code_id ?? ""}
+                      required
+                      className={selectClass}
+                    >
+                      {codes.workCodes.map((c: any) => (
+                        <option key={c.id} value={c.id}>
+                          {c.code} — {c.description}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="w-28">
+                      <label className="mb-1 block text-xs font-medium">Hours</label>
+                      <input
+                        name="hours"
+                        type="number"
+                        step="0.25"
+                        min="0"
+                        defaultValue={Number(e.hours)}
+                        className={inputClass}
+                      />
+                    </div>
+
+                    {e.kind === "work" && (
+                      <>
+                        <div className="w-32">
+                          <label className="mb-1 block text-xs font-medium">
+                            Start
+                          </label>
+                          <input
+                            name="start_time"
+                            type="time"
+                            defaultValue={e.start_time?.slice(0, 5) ?? ""}
+                            className={inputClass}
+                          />
+                        </div>
+                        <div className="w-32">
+                          <label className="mb-1 block text-xs font-medium">End</label>
+                          <input
+                            name="end_time"
+                            type="time"
+                            defaultValue={e.end_time?.slice(0, 5) ?? ""}
+                            className={inputClass}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <input
+                    name="note"
+                    defaultValue={e.note ?? ""}
+                    placeholder="Note (optional)"
+                    className={inputClass + " text-sm"}
+                  />
+
+                  <p className="text-xs text-[var(--muted)]">
+                    Entering start and end times recalculates the hours.
+                  </p>
+
+                  <div className="flex gap-2">
+                    <Button type="submit" disabled={pending}>
+                      {pending ? "Saving…" : "Save"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        setEditingId(null);
+                        setError(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </li>
+            ) : (
             <li
               key={e.id}
               className="flex flex-wrap items-center gap-2 rounded-md bg-[var(--bg)] px-3 py-2 text-sm"
@@ -162,16 +267,26 @@ export default function DayRow({
               <span className="ml-auto tabular-nums">{Number(e.hours)}h</span>
 
               {editable && !e.system_generated && (
-                <button
-                  onClick={() => onDelete(e.id)}
-                  disabled={pending}
-                  className="text-xs text-red-600 hover:underline disabled:opacity-50"
-                >
-                  Remove
-                </button>
+                <>
+                  <button
+                    onClick={() => setEditingId(e.id)}
+                    disabled={pending}
+                    className="text-xs text-[var(--accent)] hover:underline disabled:opacity-50"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => onDelete(e.id)}
+                    disabled={pending}
+                    className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                </>
               )}
             </li>
-          ))}
+            )
+          )}
         </ul>
       )}
 
@@ -310,6 +425,8 @@ export default function DayRow({
                 {codes.timeOffCodes.map((c: any) => (
                   <option key={c.id} value={c.id}>
                     {c.code} — {c.description}
+                    {c.code === "FLOATHOL" &&
+                      ` (${codes.floatingHolidayAvailable ?? 0}h available)`}
                   </option>
                 ))}
               </select>

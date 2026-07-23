@@ -158,6 +158,20 @@ export default function YearEndReport({ rows, runs, config, view }: any) {
         <Stat label="Need an adjustment" value={needsAction.length} />
       </div>
 
+      {rows.some((r: any) => !r.has_accrual_rate) && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-medium text-amber-900">
+            {rows.filter((r: any) => !r.has_accrual_rate).length} employee
+            {rows.filter((r: any) => !r.has_accrual_rate).length === 1 ? "" : "s"}{" "}
+            have no accrual rate on file
+          </p>
+          <p className="mt-1 text-sm text-amber-800">
+            Their projections show only the imported balance less time off — no
+            future accrual. Add rates on the employee page for a complete picture.
+          </p>
+        </div>
+      )}
+
       {view === "monitor" ? (
         <MonitorView rows={rows} atRisk={atRisk} />
       ) : (
@@ -223,6 +237,8 @@ function MonitorView({ rows, atRisk }: any) {
               <>
                 <th className="py-2 pr-4 font-medium">#</th>
                 <th className="py-2 pr-4 font-medium">Name</th>
+                <th className="py-2 pr-4 font-medium">On file</th>
+                <th className="py-2 pr-4 font-medium">Accrues</th>
                 <th className="py-2 pr-4 font-medium">Projected vacation</th>
                 <th className="py-2 pr-4 font-medium">Over by</th>
                 <th className="py-2 pr-4 font-medium">Converts to sick</th>
@@ -235,6 +251,12 @@ function MonitorView({ rows, atRisk }: any) {
                 <td className="py-3 pr-4 font-mono text-xs">{r.employee_number}</td>
                 <td className="py-3 pr-4">
                   {r.first_name} {r.last_name}
+                </td>
+                <td className="py-3 pr-4 tabular-nums text-[var(--muted)]">
+                  {n(r.snapshot_vacation)}
+                </td>
+                <td className="py-3 pr-4 tabular-nums text-[var(--muted)]">
+                  {n(r.accrual_vacation) > 0 ? `+${n(r.accrual_vacation)}` : "—"}
                 </td>
                 <td className="py-3 pr-4 tabular-nums">{n(r.projected_vacation)}</td>
                 <td className="py-3 pr-4 tabular-nums font-medium text-amber-700">

@@ -332,3 +332,30 @@ export async function deleteNetwork(id: string): Promise<Result> {
   revalidatePath("/admin/networks");
   return { ok: true };
 }
+
+/** Edit a work code — for fixing a typo made at creation. */
+export async function updateWorkCode(formData: FormData): Promise<Result> {
+  await requireAdmin();
+  const sb = supabaseServer();
+
+  const code = String(formData.get("code") || "").trim().toUpperCase();
+  const description = String(formData.get("description") || "").trim();
+
+  if (!code || !description) {
+    return { ok: false, error: "Code and description are required." };
+  }
+
+  const { error } = await sb.rpc("update_work_code", {
+    p_id: String(formData.get("id")),
+    p_code: code,
+    p_description: description,
+  });
+
+  if (error) {
+    if (error.code === "23505") return { ok: false, error: `${code} already exists.` };
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/admin/work-codes");
+  return { ok: true, message: `${code} updated.` };
+}

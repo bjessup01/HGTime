@@ -94,3 +94,36 @@ export async function importBalances(
   revalidatePath("/dashboard");
   return { ok: true, imported, errors };
 }
+
+/** Record an accrual rate effective from a date. Copied from payroll. */
+export async function setAccrualRate(formData: FormData): Promise<Result> {
+  await requireAdmin();
+  const sb = supabaseServer();
+
+  const { error } = await sb.rpc("set_accrual_rate", {
+    p_employee_id: String(formData.get("employee_id")),
+    p_effective: String(formData.get("effective_from")),
+    p_vacation: Number(formData.get("vacation_per_period") || 0),
+    p_sick: Number(formData.get("sick_per_period") || 0),
+    p_note: String(formData.get("note") || "") || null,
+  });
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/admin/balances");
+  revalidatePath("/admin/employees");
+  revalidatePath("/dashboard");
+  return { ok: true, message: "Accrual rate saved." };
+}
+
+export async function deleteAccrualRate(id: string): Promise<Result> {
+  await requireAdmin();
+  const sb = supabaseServer();
+
+  const { error } = await sb.rpc("delete_accrual_rate", { p_id: id });
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/admin/balances");
+  revalidatePath("/admin/employees");
+  return { ok: true, message: "Rate removed." };
+}
