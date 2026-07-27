@@ -249,6 +249,12 @@ end $$;
 -- Accrual-aware year-end projection
 -- ------------------------------------------------------------
 
+-- Return types are changing (two new columns), and Postgres cannot
+-- alter those in place. Drop in dependency order first.
+drop function if exists year_end_report(int);
+drop function if exists year_end_projection(uuid, int);
+drop function if exists employee_dashboard(uuid);
+
 /*
  * Projection now answers the question employees actually ask:
  * "if I take no more time off, where do I land on 3/31?"
@@ -530,8 +536,6 @@ end $$;
  * Year-end report gains the accrual columns, so payroll can see that a
  * projection includes hours not yet earned.
  */
-drop function if exists year_end_report(int);
-
 create or replace function year_end_report(p_fiscal_year int default null)
 returns table (
   employee_id        uuid,

@@ -22,6 +22,8 @@ export type HolidaySummary = {
   holiday_name: string;
   holiday_hours: number;
   worked_hours: number;
+  expected_hours: number;
+  excess_hours: number;
   remaining_holiday: number;
   election: "floating_holiday" | "double_time" | null;
   needs_election: boolean;
@@ -54,6 +56,7 @@ export type SalariedDay = {
 export type OtPreview = {
   week_start: string;
   week_total: number;
+  in_period: number;
   prior_regular: number;
   prior_ot: number;
   this_regular: number;

@@ -359,3 +359,80 @@ export async function updateWorkCode(formData: FormData): Promise<Result> {
   revalidatePath("/admin/work-codes");
   return { ok: true, message: `${code} updated.` };
 }
+
+// ---------------------------------------------------------------
+// Assignments
+// ---------------------------------------------------------------
+
+/** Record a genuine change from a date — keeps the old row. */
+export async function addAssignment(formData: FormData): Promise<Result> {
+  await requireAdmin();
+  const sb = supabaseServer();
+
+  const { error } = await sb.rpc("change_assignment", {
+    p_employee_id: String(formData.get("employee_id")),
+    p_effective_from: String(formData.get("effective_from")),
+    p_payroll_type: String(formData.get("payroll_type")),
+    p_employee_type: String(formData.get("employee_type")),
+    p_schedule_code: String(formData.get("schedule_code")),
+    p_default_work_code: String(formData.get("default_work_code") || "") || null,
+    p_holiday_eligible: formData.get("holiday_eligible") === "on",
+  });
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/admin/employees");
+  revalidatePath("/timecard");
+  return { ok: true, message: "Assignment added." };
+}
+
+/** Correct an existing row in place — for fixing a mistake. */
+export async function correctAssignment(formData: FormData): Promise<Result> {
+  await requireAdmin();
+  const sb = supabaseServer();
+
+  const { error } = await sb.rpc("correct_assignment", {
+    p_assignment_id: String(formData.get("assignment_id")),
+    p_payroll_type: String(formData.get("payroll_type")),
+    p_employee_type: String(formData.get("employee_type")),
+    p_schedule_code: String(formData.get("schedule_code")),
+    p_default_work_code: String(formData.get("default_work_code") || "") || null,
+    p_holiday_eligible: formData.get("holiday_eligible") === "on",
+    p_effective_from: String(formData.get("effective_from")) || null,
+  });
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/admin/employees");
+  revalidatePath("/timecard");
+  return { ok: true, message: "Assignment corrected." };
+}
+
+export async function removeAssignment(id: string): Promise<Result> {
+  await requireAdmin();
+  const sb = supabaseServer();
+
+  const { error } = await sb.rpc("delete_assignment", { p_assignment_id: id });
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/admin/employees");
+  return { ok: true, message: "Assignment removed." };
+}
+
+// ---------------------------------------------------------------
+// Employment
+// ---------------------------------------------------------------
+
+export async function undoTermination(employeeId: string): Promise<Result> {
+  await requireAdmin();
+  const sb = supabaseServer();
+
+  const { error } = await sb.rpc("undo_termination", {
+    p_employee_id: employeeId,
+  });
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/admin/employees");
+  return { ok: true, message: "Termination undone." };
+}

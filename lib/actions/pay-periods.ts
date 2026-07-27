@@ -73,3 +73,26 @@ export async function deletePayPeriod(id: string): Promise<Result> {
   revalidatePath("/admin/pay-periods");
   return { ok: true, message: "Period deleted." };
 }
+
+/**
+ * Rebuild every overtime ledger row.
+ *
+ * Cards approved before the settlement fix hold rows computed from the
+ * full workweek rather than the hours inside each period. Clearing and
+ * re-settling in date order rebuilds them correctly, since each period
+ * reads what earlier periods settled.
+ */
+export async function resettleOvertime(): Promise<
+  { ok: true; cards: number } | { ok: false; error: string }
+> {
+  await requireAdmin();
+  const sb = supabaseServer();
+
+  const { data, error } = await sb.rpc("resettle_all_overtime");
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/timecard");
+  revalidatePath("/approvals");
+  revalidatePath("/admin/pay-periods");
+  return { ok: true, cards: Number(data ?? 0) };
+}

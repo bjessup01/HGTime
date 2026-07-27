@@ -60,6 +60,10 @@ export default function HolidayElections({
                   Worked <span className="font-medium tabular-nums">{Number(h.worked_hours)}h</span>
                 </p>
                 <p className="text-[var(--muted)]">
+                  Expected {Number(h.expected_hours)}h · over by{" "}
+                  {Number(h.excess_hours)}h
+                </p>
+                <p className="text-[var(--muted)]">
                   Holiday pay remaining:{" "}
                   <span className="tabular-nums">{Number(h.remaining_holiday)}h</span>
                 </p>
@@ -68,8 +72,9 @@ export default function HolidayElections({
 
             {isSalaried ? (
               <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-                {Number(h.worked_hours)} floating holiday hours will be added to your
-                balance.
+                Worked {Number(h.excess_hours)}h beyond the expected{" "}
+                {Number(h.expected_hours)}h — {Number(h.excess_hours)} floating holiday
+                hours will be added to your balance.
               </p>
             ) : h.election ? (
               <div className="mt-3 flex items-center gap-3">

@@ -663,3 +663,305 @@ plus 5h accrued since
 
 The year-end projection adds an "Accrues by 3/31 if no time is taken" line, and
 says explicitly when a projection excludes accrual because no rate is on file.
+
+---
+
+# Employment lifecycle
+
+## Run the migration
+
+`supabase/migrations/0019_employment.sql`
+
+## Assignment history
+
+Two operations, deliberately distinguished:
+
+**Add assignment** — records a genuine change from a date. The old row stays and
+continues to apply to days before the change, so a timecard from before still
+reflects what was true then. Effective date defaults to the next period start
+and can be overridden to any date.
+
+**Correct** — edits a row in place, treating it as always having said this. For
+fixing a mistake.
+
+When a correction touches **payroll type, employee type, or schedule**, a
+warning appears naming what changed and how many timecards already exist under
+that row:
+
+> Changing the schedule affects how days are computed, and 3 timecards already
+> exist under this row. Correct this row only if the old value was a mistake —
+> otherwise add a new assignment so the history keeps both.
+
+The warning doesn't block; it makes the consequence visible. Default work code
+and holiday eligibility edit freely without warning.
+
+Moving an effective date is validated against the neighbouring rows so history
+can't be reordered into an invalid state.
+
+## Termination
+
+Sets the last day worked and deactivates the login. **Open timecards are left
+alone** — the supervisor still needs to review and approve the final card.
+
+**Future dates are allowed** for notice given in advance. The login stays active
+until the date arrives; when an admin next opens the employee list, any
+termination whose date has passed deactivates automatically. A pending
+termination shows a banner with an undo link.
+
+**Undo termination** reopens the employment period and reactivates the login,
+for a date entered in error or notice withdrawn.
+
+## Rehire
+
+Opens a new employment period and reactivates the login. The rehire date must be
+after the last day worked.
+
+The form notes that vacation accrual runs from the **full-time hire date**, not
+the original — so a rehire usually needs a fresh accrual rate row. Seniority
+still runs from the earliest hire date.
+
+---
+
+# Navigation
+
+The header groups less-frequent destinations into menus:
+
+**Top level** — Home, My time, Approvals, Employees, Balances
+
+**Reports ▾** — Year end, Audit
+
+**Settings ▾** — Work codes, Pay periods, Networks
+
+Balances stays top-level since it's used after every payroll run. Reports is
+structured to grow — new reports go there rather than adding another button.
+
+The menus open on click and close on outside click, Escape, or navigation. The
+current page is highlighted, and a group whose page you're on stays highlighted
+while closed, so you can see where you are without opening it.
+
+Employees and supervisors see only their own links, so a non-admin sees a short
+flat bar with no menus.
+
+---
+
+# Printed card: regular hours fix
+
+## Run the migration
+
+`supabase/migrations/0020_print_week_fix.sql`
+
+## Two problems, one root cause
+
+The printed card was computing its own regular/overtime split instead of
+reading the settlement the rest of the app uses.
+
+**1. Regular Hours counted prior-period days.** The workweek block spans days
+from the previous period — that's what the asterisked rows are for, since they
+establish the 40-hour line. But summing that block's Regular column counted
+hours the previous card already paid.
+
+On a 6/11–6/25 card with 31 prior-period hours, that printed 120.00 regular for
+a period that paid 96.00. Now:
+
+```
+regular = hours paid this period − overtime settling this period
+        = 96.00 − 7.00
+        = 89.00
+```
+
+**2. Overtime could be claimed twice.** The block capped hours at the period
+end, so a week extending past it showed a partial total and claimed overtime
+that hadn't settled. A week ending 6/27 on a card ending 6/25 showed 42 hours
+and 2.00 OT — but if the employee then worked 6/26, the real week was 50 hours
+and the whole thing settled on the *next* card, which would claim it again.
+
+The week summary now reads from `timecard_ot_preview`, the same source the
+timecard screen uses, so screen and paper always agree. A week that settles
+later shows its full total, no overtime, and a † with a footnote:
+
+> †This week continues past the end of this pay period. Its overtime settles on
+> the next pay period's time card.
+
+**Regular + Overtime now always equals Total Hours**, which wasn't true before.
+
+---
+
+# Overtime settlement fix
+
+## Run the migration
+
+`supabase/migrations/0021_overtime_settlement_fix.sql`
+
+**Then run "Recalculate overtime"** on `/admin/pay-periods`. Cards approved
+before this fix hold ledger rows computed the old way.
+
+## The bug
+
+A pay period settled the **full Sunday–Saturday week**, including days belonging
+to other periods. A card ending mid-week therefore paid days that hadn't been
+worked yet, and the next card found nothing owed.
+
+The week of 6/21 split across two cards:
+
+```
+6/22-6/25   42.00   on the 6/11-6/25 card
+6/26         4.00   on the 6/26-7/10 card
+full week   46.00
+```
+
+**Before:** card 1 settled 40 regular + 6 OT — claiming 6/26 before it happened.
+Card 2 then computed `46 − 46 = 0` and settled nothing, showing "46h already
+paid last period."
+
+**After:** card 1 settles 40 regular + 2 OT. Card 2 settles 0 regular + 4 OT.
+
+Across both cards: 40 regular + 6 OT = 46 hours. Correct either way in total,
+but the 4 hours worked on 6/26 were being paid on the wrong card — and paid
+before they were worked.
+
+## What changed
+
+`settle_overtime` now claims only hours falling **inside its own period**. The
+40-hour line is still established by the full week across every period and by
+what other periods already settled — that part was right.
+
+`timecard_ot_preview` gains an `in_period` column and matches the settlement
+exactly, so the screen, the printed card, and the ledger cannot disagree.
+
+## Re-settling
+
+"Recalculate overtime" on `/admin/pay-periods` clears the ledger and re-settles
+every approved card in date order. Each period reads what earlier ones settled,
+so order matters and the function handles it.
+
+Hours and entries are never touched — only the regular/overtime split. Worth
+running any time a card is corrected after approval, not just after this fix.
+
+---
+
+# Printed week block: display fix
+
+## Run the migration
+
+`supabase/migrations/0022_print_week_display.sql`
+
+No re-settlement needed — `0021` fixed the settlement itself, this fixes what
+the block shows.
+
+## The rule
+
+**Overtime is paid in the period where the hours were worked.** A week split
+across two cards settles independently on each, with the 40-hour line carried
+forward through the ledger.
+
+## What was wrong
+
+**Total showed the full week.** On a card ending 6/25 the week of 6/21 printed
+46.00 — including 4 hours worked on 6/26 and paid on the next card. The block is
+a settlement table, so it now shows hours in this period: 42.00.
+
+**The † was on the wrong test.** It flagged weeks ending after the period end,
+implying their overtime settled later. Under "paid where earned" that's not
+true: the 2 hours of overtime earned 6/25 are paid on the 6/11–6/25 card even
+though that week runs to 6/27.
+
+† now means **part of this week is paid on the adjoining card**, which is the
+thing worth knowing when the columns don't match a full 40-hour week.
+
+## The result
+
+Card 6/11–6/25:
+
+```
+06/07/26  06/13/26   14.00    9.00    5.00 †
+06/14/26  06/20/26   40.00   40.00    0.00
+06/21/26  06/27/26   42.00   40.00    2.00 †
+
+Regular Hours    89.00
+Overtime Hours    7.00
+```
+
+The first week is itself split — 31 hours were paid on the previous card, so
+only 9 hours of regular room remained and 5 of the 14 hours are overtime.
+
+Card 6/26–7/10:
+
+```
+06/21/26  06/27/26    4.00    0.00    4.00 †
+06/28/26  07/04/26    9.00    9.00    0.00
+
+Regular Hours     9.00
+Overtime Hours    4.00
+```
+
+Across both cards the 6/21 week pays 40 regular + 6 overtime, split 2 and 4 by
+where the hours were worked.
+
+**Regular + Overtime equals Total Hours on every card** — the check worth using
+when verifying.
+
+---
+
+# Double-time split + holiday summary fix
+
+## Run the migration
+
+`supabase/migrations/0023_double_time_split.sql`
+
+Then, for any already-approved cards with holiday work, run "Recalculate
+overtime" — no, that's OT only. For holiday elections, re-open and re-save the
+affected day, or the numbers correct themselves next time the card is touched.
+
+## Three bugs, one holiday
+
+Working a holiday with double time elected exposed three problems that had been
+latent because nobody had worked *past* the expected hours and elected DT before.
+
+**1. Double time never split the entry.** Electing DT flagged the entire worked
+line as double-time instead of peeling off only the excess. A 4x9+4 Thursday
+scheduled 9 with a 5-hour holiday expects 4 hours of work; working 6 means 2
+excess. The line now splits into **4 regular + 2 double-time**, not 6 all-DT.
+
+**2. `holiday_work_summary` was inconsistent.** It returned `remaining_holiday`
+as `holiday − worked`, and lacked the `excess_hours` column that the print notes
+and salaried summary already referenced. It now exposes `expected_hours`,
+`excess_hours`, and a `remaining_holiday` that matches what the card actually
+shows (`holiday − excess`).
+
+**3. Floating holiday banked the wrong amount.** It banked total worked hours
+instead of the excess. Working 6 on that holiday now banks **2** floating hours,
+not 6.
+
+## The model
+
+For a holiday worked:
+
+```
+expected = scheduled − holiday      (paid at regular rate)
+excess   = worked − expected        (the hours in question)
+holiday  = holiday − excess         (what remains as holiday pay)
+```
+
+The election acts on the excess:
+
+- **Double time** — peel the excess into a `double_time` line; the rest stays
+  regular. Payroll doubles the rate on the flagged line.
+- **Floating holiday** — leave the entries alone; bank the excess.
+- **Salaried** — always bank the excess as floating holiday; never split.
+
+For the 4x9+4 Thursday (9 scheduled, 5 holiday, worked 6): **4 regular + 2 DT +
+3 holiday = 9**, and the day reconciles.
+
+## Re-running is safe
+
+`apply_holiday_elections` folds any prior double-time split back into the base
+line before re-splitting, so switching DT → FH, or editing the worked hours
+after electing, always recomputes from the true worked total. It runs
+automatically after any holiday recompute.
+
+## Printed note
+
+Now names the split explicitly:
+
+> Independence Day — worked 6 hrs (4 expected). 2 hrs over, elected DOUBLE TIME —
+> 2 hrs paid at double rate, the rest at regular rate.

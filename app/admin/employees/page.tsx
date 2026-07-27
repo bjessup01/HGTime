@@ -22,6 +22,9 @@ export default async function EmployeesPage() {
   await requireAdmin();
   const sb = supabaseServer();
 
+  // deactivate logins for terminations whose date has arrived
+  await sb.rpc("process_pending_terminations");
+
   const [{ data: employees }, { data: schedules }, { data: workCodes }] =
     await Promise.all([
       sb.from("employee_current").select("*").order("employee_number"),
@@ -64,7 +67,14 @@ export default async function EmployeesPage() {
             >
               {employees.map((e: any) => (
                 <tr key={e.id} className="border-b border-[var(--line)] last:border-0">
-                  <td className="py-3 pr-4 font-mono text-xs">{e.employee_number}</td>
+                  <td className="py-3 pr-4 font-mono text-xs">
+                    {e.employee_number}
+                    {!e.active && (
+                      <span className="ml-2 font-sans text-xs text-[var(--muted)]">
+                        inactive
+                      </span>
+                    )}
+                  </td>
                   <td className="py-3 pr-4">
                     {e.first_name} {e.last_name}
                     {e.role !== "employee" && (

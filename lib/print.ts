@@ -61,8 +61,14 @@ export async function loadPrintCard(timecardId: string): Promise<PrintCard | nul
   const bucket = (b: string) =>
     off.filter((l) => l.bucket === b).reduce((s, l) => s + Number(l.hours), 0);
 
-  const regular = wk.reduce((s, w) => s + Number(w.regular), 0);
+  // Every week settles what this period owes for it, so overtime is a
+  // straight sum. Overtime is paid where the hours were worked, not
+  // where the week ends.
   const overtime = wk.reduce((s, w) => s + Number(w.overtime), 0);
+  // Time off that does not count toward overtime never appears in the
+  // workweek block, so add it back for the Regular line.
+  const paidThisPeriod = hoursWorked + timeOff;
+  const regular = Math.max(paidThisPeriod - overtime, 0);
 
   return {
     header: h,

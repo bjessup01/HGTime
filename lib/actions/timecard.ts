@@ -73,6 +73,7 @@ export async function openTimecard(
   if (error) return { ok: false, error: error.message };
 
   await sb.rpc("apply_holiday_entries", { p_timecard_id: data });
+  await sb.rpc("apply_holiday_elections", { p_timecard_id: data });
 
   return { ok: true, timecardId: data as string };
 }
@@ -135,6 +136,7 @@ export async function addEntry(formData: FormData): Promise<Result> {
 
   // Worked hours reduce holiday pay, so re-derive after every change.
   await sb.rpc("apply_holiday_entries", { p_timecard_id: timecardId });
+  await sb.rpc("apply_holiday_elections", { p_timecard_id: timecardId });
 
   revalidatePath("/timecard");
   revalidatePath("/dashboard");
@@ -176,6 +178,7 @@ export async function updateEntry(formData: FormData): Promise<Result> {
   if (error) return { ok: false, error: error.message };
 
   await sb.rpc("apply_holiday_entries", { p_timecard_id: entry.timecard_id });
+  await sb.rpc("apply_holiday_elections", { p_timecard_id: entry.timecard_id });
   revalidatePath("/timecard");
   revalidatePath("/dashboard");
   return { ok: true };
@@ -207,6 +210,7 @@ export async function deleteEntry(entryId: string): Promise<Result> {
   if (error) return { ok: false, error: error.message };
 
   await sb.rpc("apply_holiday_entries", { p_timecard_id: entry.timecard_id });
+  await sb.rpc("apply_holiday_elections", { p_timecard_id: entry.timecard_id });
   revalidatePath("/timecard");
   revalidatePath("/dashboard");
   return { ok: true };
@@ -229,13 +233,11 @@ export async function setHolidayElection(
 
   if (error) return { ok: false, error: error.message };
 
-  // Double time exports as a duplicate work-code line at a doubled rate.
-  await sb
-    .from("timecard_entries")
-    .update({ double_time: election === "double_time" })
-    .eq("timecard_id", timecardId)
-    .eq("work_date", workDate)
-    .eq("kind", "work");
+  // Apply the election: for double time this splits the worked line,
+  // peeling only the excess hours into a double_time line rather than
+  // flagging the whole day. apply_holiday_elections also folds back any
+  // prior split first, so switching DT -> FH cleanly undoes it.
+  await sb.rpc("apply_holiday_elections", { p_timecard_id: timecardId });
 
   revalidatePath("/timecard");
   revalidatePath("/dashboard");
@@ -409,6 +411,7 @@ export async function applyRangeTimeOff(
   if (error) return { ok: false, error: error.message };
 
   await sb.rpc("apply_holiday_entries", { p_timecard_id: timecardId });
+  await sb.rpc("apply_holiday_elections", { p_timecard_id: timecardId });
 
   revalidatePath("/timecard");
   revalidatePath("/dashboard");

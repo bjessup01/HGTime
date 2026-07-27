@@ -6,6 +6,7 @@ import {
   generateSemiMonthlyYear,
   generateBiWeeklySeason,
   deletePayPeriod,
+  resettleOvertime,
 } from "@/lib/actions/pay-periods";
 import {
   Panel,
@@ -76,6 +77,26 @@ export default function PayPeriodManager({
     startTransition(async () => {
       const res = await generateBiWeeklySeason(seasonStart, seasonCount);
       setMessage(res.ok ? { ok: res.message } : { error: res.error });
+      router.refresh();
+    });
+  }
+
+  function onResettle() {
+    if (
+      !confirm(
+        "Recalculate overtime for every approved timecard? " +
+          "Hours and entries are not changed — only the regular/overtime split."
+      )
+    )
+      return;
+
+    startTransition(async () => {
+      const res = await resettleOvertime();
+      setMessage(
+        res.ok
+          ? { ok: `Re-settled ${res.cards} timecard${res.cards === 1 ? "" : "s"}.` }
+          : { error: res.error }
+      );
       router.refresh();
     });
   }
@@ -252,6 +273,21 @@ export default function PayPeriodManager({
           )}
         </Panel>
       )}
+
+      <Panel
+        title="Overtime maintenance"
+        description="Recalculates the regular/overtime split on approved timecards. Hours and entries are untouched."
+      >
+        <div className="flex flex-wrap items-center gap-4">
+          <Button variant="secondary" onClick={onResettle} disabled={pending}>
+            {pending ? "Working…" : "Recalculate overtime"}
+          </Button>
+          <p className="text-sm text-[var(--muted)]">
+            Run once after the settlement fix, or any time a card is corrected
+            after approval.
+          </p>
+        </div>
+      </Panel>
 
       <Panel title="All periods">
         {periods.length === 0 ? (

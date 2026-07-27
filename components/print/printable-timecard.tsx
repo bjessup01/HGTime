@@ -148,7 +148,10 @@ export default function PrintableTimecard({
                     <td>{fmtShort(w.week_end)}</td>
                     <td className="tc-num">{hrs(w.total_hours)}</td>
                     <td className="tc-num">{hrs(w.regular)}</td>
-                    <td className="tc-num">{hrs(w.overtime)}</td>
+                    <td className="tc-num">
+                      {hrs(w.overtime)}
+                      {w.is_split ? "\u2020" : ""}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -257,6 +260,14 @@ export default function PrintableTimecard({
         <div className="tc-footnote">
           *Time entries from previous pay period shown for overtime calculation.
           Hours are not included in total hours for this pay period.
+        </div>
+      )}
+
+      {!h.is_salaried && weeks.some((w: any) => w.is_split) && (
+        <div className="tc-footnote">
+          &dagger;This work week is split across two pay periods. Hours shown are
+          those worked in this period; the rest appear on the adjoining time
+          card. Overtime is paid in the period the hours were worked.
         </div>
       )}
 

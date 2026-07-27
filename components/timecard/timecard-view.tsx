@@ -248,9 +248,7 @@ export default function TimecardView({
                       Week of {fmtDate(w.week_start).replace(/^\w+ /, "")}
                       {w.is_split_week && (
                         <span className="ml-2">
-                          <Badge tone="neutral">
-                            {w.settles_here ? "week ends here" : "continues next period"}
-                          </Badge>
+                          <Badge tone="neutral">split week</Badge>
                         </span>
                       )}
                     </span>
@@ -264,17 +262,18 @@ export default function TimecardView({
                     </span>
                   </div>
 
-                  {(Number(w.prior_regular) > 0 || Number(w.prior_ot) > 0) && (
+                  {w.is_split_week && (
                     <p className="mt-1 text-xs text-[var(--muted)]">
-                      {Number(w.prior_regular) + Number(w.prior_ot)}h already paid last
-                      period. Full week: {Number(w.week_total)}h.
-                    </p>
-                  )}
-
-                  {w.is_split_week && !w.settles_here && (
-                    <p className="mt-1 text-xs text-[var(--muted)]">
-                      This week continues into the next period. Any overtime is
-                      calculated and paid there, once the full week is known.
+                      Full week {Number(w.week_total)}h, {Number(w.in_period)}h in this
+                      period.
+                      {Number(w.prior_regular) + Number(w.prior_ot) > 0
+                        ? ` ${Number(w.prior_regular) + Number(w.prior_ot)}h were paid on the previous card.`
+                        : " The rest fall in the next period and are paid there."}
+                      {Number(w.prior_regular) >= 40
+                        ? " The 40-hour line is used up, so these hours are overtime."
+                        : Number(w.prior_regular) > 0
+                        ? ` ${40 - Number(w.prior_regular)}h of regular time remain before overtime.`
+                        : ""}
                     </p>
                   )}
                 </div>
