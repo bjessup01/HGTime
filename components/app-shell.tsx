@@ -23,6 +23,10 @@ export default async function AppShell({ children }: { children: React.ReactNode
       show: isAdmin,
       links: [
         { href: "/admin/year-end", label: "Year end" },
+        { href: "/admin/overtime-report", label: "Overtime" },
+        { href: "/admin/time-off-report", label: "Time off" },
+        { href: "/admin/shuttle-report", label: "Shuttle" },
+        { href: "/admin/missing-timecards", label: "Missing timecards" },
         { href: "/admin/audit", label: "Audit" },
       ],
     },

@@ -965,3 +965,85 @@ Now names the split explicitly:
 
 > Independence Day — worked 6 hrs (4 expected). 2 hrs over, elected DOUBLE TIME —
 > 2 hrs paid at double rate, the rest at regular rate.
+
+---
+
+# Time-off report
+
+## Run the migration
+
+`supabase/migrations/0024_time_off_report.sql`
+
+## `/admin/time-off-report` (Reports menu)
+
+One line per employee per code per day, sorted last name, first name, date.
+Someone taking vacation 7/20–7/22 shows three lines; a sick day is a fourth.
+
+**Filters:**
+
+- **Date range** — defaults to the current month
+- **Codes** — tap to select one or several; leave all untapped to include every
+  code. "Select all" clears the selection back to everything.
+
+**Totals by code** across everyone at the bottom, hours only, with a grand
+total.
+
+**Export CSV** includes both the detail lines and the totals block. **Print /
+PDF** opens a print-formatted version in a new tab — choose "Save as PDF" in the
+dialog. Both use the report currently displayed, so run it first, then export or
+print.
+
+System-generated holiday allocations are excluded — this reports time employees
+took, not holiday hours the system applied. Unpaid entries are included and
+marked.
+
+Payroll admin only.
+
+---
+
+# Three more reports
+
+## Run the migration
+
+`supabase/migrations/0025_more_reports.sql`
+
+All three are under the Reports menu, payroll admin only.
+
+## Overtime report — `/admin/overtime-report`
+
+Settled overtime by workweek, one line per employee per week that carries OT.
+Runs by pay period or date range. Totals: OT hours per employee and a grand
+total.
+
+**Settled only** — reads the workweek ledger, which is written at supervisor
+approval. Overtime on open cards is not shown, because it is not final until the
+settling period is approved.
+
+Split weeks show two lines (one per period that paid into them), marked †, since
+the same week can settle overtime in two periods. The regular column (40 then 0)
+shows why, and the total is correct across both.
+
+## Shuttle incentive report — `/admin/shuttle-report`
+
+One line per employee per day an incentive was recorded: date, level, dollar
+value. Runs by pay period or date range. Totals: day count and dollar amount per
+employee, plus a grand total.
+
+## PDF on all three
+
+Each report has **Print / PDF** beside **Export CSV**, opening a print-formatted
+version in a new tab — choose "Save as PDF" in the dialog. Both use the report
+currently displayed, so run it first.
+
+## Missing timecards — `/admin/missing-timecards`
+
+For a chosen pay period, everyone who does not have a supervisor-approved card.
+Two states, counted separately at the top:
+
+- **No card started** — never opened one
+- **Started, not approved** — open or employee-approved but not yet through
+  supervisor approval
+
+Only employees employed during the period and on that period's payroll are
+listed. Each started-but-unapproved row links straight to the card. Run this on
+processing day to see who still needs chasing.

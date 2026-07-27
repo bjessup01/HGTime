@@ -1,10 +1,17 @@
 "use client";
 
-export default function PrintControls({ count }: { count: number }) {
+export default function PrintControls({
+  count,
+  label,
+}: {
+  count: number;
+  label?: string;
+}) {
   return (
     <div className="tc-controls">
       <span>
-        {count} timecard{count === 1 ? "" : "s"} ready
+        {label ??
+          `${count} timecard${count === 1 ? "" : "s"} ready`}
       </span>
       <button onClick={() => window.print()} className="tc-print-btn">
         Print / Save as PDF

@@ -1,0 +1,73 @@
+.to-report {
+  page-break-after: auto;
+}
+
+.to-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-top: 1px solid #000;
+  border-bottom: 1px solid #000;
+  margin-top: 1em;
+}
+
+.to-table th {
+  font-weight: normal;
+  text-align: left;
+  padding: 0.15em 0.75em 0.15em 0;
+  border-bottom: 1px solid #000;
+}
+
+.to-table td {
+  padding: 0.15em 0.75em 0.15em 0;
+  vertical-align: top;
+}
+
+.to-desc {
+  width: 40%;
+}
+
+.to-num {
+  text-align: right;
+  white-space: nowrap;
+  padding-right: 0 !important;
+}
+
+.to-table th.to-num {
+  text-align: right;
+}
+
+.to-totals-title {
+  margin-top: 1.5em;
+  margin-bottom: 0.25em;
+  font-weight: bold;
+}
+
+.to-totals {
+  border-collapse: collapse;
+  min-width: 60%;
+}
+
+.to-totals td {
+  padding: 0.15em 0.75em 0.15em 0;
+}
+
+.to-grand td {
+  border-top: 1px solid #000;
+  font-weight: bold;
+  padding-top: 0.3em;
+}
+
+/* keep employee groups from breaking awkwardly across pages */
+.to-table tr {
+  page-break-inside: avoid;
+}
+
+.to-footnote {
+  margin-top: 1.5em;
+  font-size: 0.9em;
+}
+
+.mt-summary {
+  margin-top: 0.75em;
+  font-style: italic;
+}
