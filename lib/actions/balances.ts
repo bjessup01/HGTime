@@ -49,15 +49,24 @@ export async function importBalances(
 
   if (lines.length === 0) return { ok: false, error: "Nothing to import." };
 
+  // Split each row on comma OR tab. Copying cells straight out of Excel
+  // yields tab-separated text, not commas, so accept both — otherwise a
+  // whole tab-separated paste collapses into one unmatched cell per row.
+  // Also strip a BOM and non-breaking spaces, which Excel likes to add and
+  // which would break an exact employee-number match invisibly.
+  const clean = (s: string) =>
+    s.replace(/^\uFEFF/, "").replace(/\u00a0/g, " ").trim();
+  const splitRow = (line: string) => line.split(/[,\t]/).map(clean);
+
   // skip a header row if the first cell isn't numeric-looking
-  const first = lines[0].split(",")[0]?.trim() ?? "";
+  const first = splitRow(lines[0])[0] ?? "";
   const rows = /^\d+$/.test(first) ? lines : lines.slice(1);
 
   let imported = 0;
   const errors: string[] = [];
 
   for (const [i, line] of rows.entries()) {
-    const cells = line.split(",").map((c) => c.trim());
+    const cells = splitRow(line);
     const employeeNumber = cells[0];
     if (!employeeNumber) continue;
 

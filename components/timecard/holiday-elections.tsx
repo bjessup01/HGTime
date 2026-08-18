@@ -23,7 +23,10 @@ export default function HolidayElections({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const worked = summary.filter((h: any) => h.worked_hours > 0);
+  // Only holidays worked BEYOND the expected hours need a decision. Working
+  // up to the expected amount just reduces holiday pay hour-for-hour and
+  // needs no election, so those don't appear here.
+  const worked = summary.filter((h: any) => Number(h.excess_hours) > 0);
   const converting = conversions.filter((c: any) => c.converts);
 
   if (worked.length === 0 && converting.length === 0) return null;
@@ -102,8 +105,9 @@ export default function HolidayElections({
             ) : (
               <div className="mt-3 space-y-2">
                 <p className="text-sm">
-                  You worked on this holiday. Choose how you want those{" "}
-                  {Number(h.worked_hours)} hours handled:
+                  You worked {Number(h.excess_hours)}h beyond the expected{" "}
+                  {Number(h.expected_hours)}h on this holiday. Choose how those{" "}
+                  {Number(h.excess_hours)} hours are handled:
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -121,7 +125,7 @@ export default function HolidayElections({
                   </Button>
                 </div>
                 <p className="text-xs text-[var(--muted)]">
-                  Floating holiday banks {Number(h.worked_hours)} hours to use later.
+                  Floating holiday banks {Number(h.excess_hours)} hours to use later.
                   Double time pays those hours at twice the rate. Your choice is noted
                   on the timecard for payroll.
                 </p>

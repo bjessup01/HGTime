@@ -1,36 +1,39 @@
-import Link from "next/link";
 import AppShell from "@/components/app-shell";
 import { requireAdmin } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase";
-import { Panel, Table, Badge, Empty } from "@/components/ui";
+import { Panel, Empty } from "@/components/ui";
 import NewEmployeeForm from "./new-employee-form";
+import EntryPeriodPicker from "./entry-period-picker";
+import RosterTable from "./roster-table";
 
-const TYPE_LABEL: Record<string, string> = {
-  salaried: "Salaried",
-  full_time_hourly: "Full-time hourly",
-  part_time: "Part-time",
-  on_call: "On-call",
-  seasonal: "Seasonal",
-};
-
-const PAYROLL_LABEL: Record<string, string> = {
-  semi_monthly: "Semi-monthly",
-  bi_weekly: "Bi-weekly",
-};
-
-export default async function EmployeesPage() {
+export default async function EmployeesPage({
+  searchParams,
+}: {
+  searchParams: { entryPeriod?: string };
+}) {
   await requireAdmin();
   const sb = supabaseServer();
+
+  const entryPeriod = searchParams.entryPeriod;
 
   // deactivate logins for terminations whose date has arrived
   await sb.rpc("process_pending_terminations");
 
-  const [{ data: employees }, { data: schedules }, { data: workCodes }] =
-    await Promise.all([
-      sb.from("employee_current").select("*").order("employee_number"),
-      sb.from("work_schedules").select("code, name").eq("active", true).order("code"),
-      sb.from("work_codes").select("code, description").eq("active", true).order("code"),
-    ]);
+  const [
+    { data: employees },
+    { data: schedules },
+    { data: workCodes },
+    { data: periods },
+  ] = await Promise.all([
+    sb.from("employee_current").select("*").order("employee_number"),
+    sb.from("work_schedules").select("code, name").eq("active", true).order("code"),
+    sb.from("work_codes").select("code, description").eq("active", true).order("code"),
+    sb
+      .from("pay_periods")
+      .select("id, start_date, end_date, payroll_type")
+      .order("start_date", { ascending: false })
+      .limit(40),
+  ]);
 
   return (
     <AppShell>
@@ -42,6 +45,8 @@ export default async function EmployeesPage() {
           </p>
         </div>
 
+        <EntryPeriodPicker periods={periods ?? []} selected={entryPeriod} />
+
         <NewEmployeeForm
           schedules={schedules ?? []}
           workCodes={workCodes ?? []}
@@ -51,65 +56,7 @@ export default async function EmployeesPage() {
           {!employees?.length ? (
             <Empty>No employees yet. Add the first one above.</Empty>
           ) : (
-            <Table
-              head={
-                <>
-                  <th className="py-2 pr-4 font-medium">#</th>
-                  <th className="py-2 pr-4 font-medium">Name</th>
-                  <th className="py-2 pr-4 font-medium">Payroll</th>
-                  <th className="py-2 pr-4 font-medium">Type</th>
-                  <th className="py-2 pr-4 font-medium">Schedule</th>
-                  <th className="py-2 pr-4 font-medium">Default code</th>
-                  <th className="py-2 pr-4 font-medium">Flags</th>
-                  <th className="py-2 font-medium"></th>
-                </>
-              }
-            >
-              {employees.map((e: any) => (
-                <tr key={e.id} className="border-b border-[var(--line)] last:border-0">
-                  <td className="py-3 pr-4 font-mono text-xs">
-                    {e.employee_number}
-                    {!e.active && (
-                      <span className="ml-2 font-sans text-xs text-[var(--muted)]">
-                        inactive
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-3 pr-4">
-                    {e.first_name} {e.last_name}
-                    {e.role !== "employee" && (
-                      <span className="ml-2">
-                        <Badge tone="neutral">
-                          {e.role === "payroll_admin" ? "Payroll admin" : "Supervisor"}
-                        </Badge>
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-3 pr-4">{PAYROLL_LABEL[e.payroll_type] ?? "—"}</td>
-                  <td className="py-3 pr-4">{TYPE_LABEL[e.employee_type] ?? "—"}</td>
-                  <td className="py-3 pr-4">{e.schedule_code ?? "—"}</td>
-                  <td className="py-3 pr-4 font-mono text-xs">
-                    {e.default_work_code ?? "—"}
-                  </td>
-                  <td className="py-3 pr-4">
-                    <div className="flex flex-wrap gap-1">
-                      {e.holiday_eligible && <Badge tone="good">Holiday</Badge>}
-                      {e.shuttle_eligible && <Badge tone="neutral">Shuttle</Badge>}
-                      {e.can_enter_remotely && <Badge tone="warn">Remote</Badge>}
-                      {!e.currently_employed && <Badge tone="bad">Termed</Badge>}
-                    </div>
-                  </td>
-                  <td className="py-3">
-                    <Link
-                      href={`/admin/employees/${e.id}`}
-                      className="text-sm text-[var(--accent)] hover:underline"
-                    >
-                      Manage
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </Table>
+            <RosterTable employees={employees} entryPeriod={entryPeriod} />
           )}
         </Panel>
       </div>

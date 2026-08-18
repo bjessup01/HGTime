@@ -1047,3 +1047,45 @@ Two states, counted separately at the top:
 Only employees employed during the period and on that period's payroll are
 listed. Each started-but-unapproved row links straight to the card. Run this on
 processing day to see who still needs chasing.
+
+---
+
+# Overtime settlement: order-independent fix
+
+## Run the migration
+
+`supabase/migrations/0026_settlement_order_fix.sql` — it re-settles all
+approved cards automatically at the end, so no manual "Recalculate overtime"
+step is needed.
+
+## The bug
+
+Split-week overtime depended on the order cards were approved. A period counted
+"prior regular" as a week's regular hours across all other periods, ignoring
+which period came first.
+
+For the week of 3/22–3/28 split as 33.75h (card ending 3/25) + 17.50h (card from
+3/26): approving the later card first made the earlier card treat 17.50 as prior
+regular, compute room = 40 − 17.50 = 22.50, and push 11.25 into overtime — on the
+half that was entirely under 40 and should carry none.
+
+This mis-stated **both** cards: the earlier showed 11.25 OT it shouldn't have,
+and the later was missing that 11.25.
+
+## The fix
+
+A period now counts as prior only the regular hours of periods that **start
+before it**, and settling a period re-settles every later period holding the
+same week. The first 40 hours of a week (in date order) are regular; the rest
+overtime — regardless of approval order.
+
+Verified for the split above, for the reverse approval order, and for a
+three-way split. Correct result:
+
+```
+card ending 3/25:  33.75 regular,  0.00 OT
+card from 3/26:     6.25 regular, 11.25 OT
+full week:         40.00 regular, 11.25 OT
+```
+
+Approval order no longer changes any number.

@@ -24,6 +24,13 @@ export default function BalanceTools() {
       const res = await importBalances(csv, asOf);
       if (!res.ok) {
         setResult({ error: res.error });
+      } else if (res.imported === 0 && res.errors.length > 0) {
+        // nothing landed and every row errored — surface that plainly
+        // rather than a bare "Imported 0", which reads like success
+        setResult({
+          error: `Nothing imported — all ${res.errors.length} rows failed. Most likely those employee numbers aren't in the system yet (the import only updates balances for employees that already exist).`,
+          errors: res.errors,
+        });
       } else {
         setResult({
           ok: `Imported ${res.imported} balance${res.imported === 1 ? "" : "s"}.`,
@@ -86,7 +93,7 @@ export default function BalanceTools() {
 
           <Field
             label="Paste rows"
-            hint="employee_number, vacation, sick — one per line. A header row is skipped automatically. Leave a cell blank to keep the existing balance."
+            hint="employee_number, vacation, sick — one per line. Paste from Excel or a CSV; commas and tabs both work. Header row skipped automatically. Blank cell keeps the existing balance."
           >
             <textarea
               value={csv}
@@ -159,9 +166,14 @@ export default function BalanceTools() {
             {result.errors.length} row{result.errors.length === 1 ? "" : "s"} had problems
           </p>
           <ul className="mt-1 space-y-0.5 text-xs text-amber-800">
-            {result.errors.slice(0, 10).map((e, i) => (
+            {result.errors.slice(0, 20).map((e, i) => (
               <li key={i}>{e}</li>
             ))}
+            {result.errors.length > 20 && (
+              <li className="font-medium">
+                …and {result.errors.length - 20} more
+              </li>
+            )}
           </ul>
         </div>
       )}

@@ -120,7 +120,7 @@ export async function currentPayPeriod(
  */
 export async function recentPayPeriods(
   payrollType: "semi_monthly" | "bi_weekly",
-  limit = 8,
+  limit = 20,
   future = 2
 ): Promise<PayPeriod[]> {
   const sb = supabaseServer();
