@@ -445,7 +445,7 @@ export async function undoTermination(employeeId: string): Promise<Result> {
 export async function setSalariedSplit(
   employeeId: string,
   lines: { work_code_id: string; percent: number }[]
-): Promise<r> {
+): Promise<Result> {
   const sb = supabaseServer();
 
   const ids = lines.map((l) => l.work_code_id);
