@@ -97,8 +97,10 @@ export default function RosterTable({
   employees: any[];
   entryPeriod?: string;
 }) {
-  const [sort, setSort] = useState<SortKey>("number");
+  const [sort, setSort] = useState<SortKey>("name");
   const [dir, setDir] = useState<1 | -1>(1);
+  const [query, setQuery] = useState("");
+  const [showTermed, setShowTermed] = useState(false);
 
   function onSort(col: SortKey) {
     if (col === sort) {
@@ -110,7 +112,25 @@ export default function RosterTable({
   }
 
   const rows = useMemo(() => {
-    const copy = [...employees];
+    const q = query.trim().toLowerCase();
+    const copy = employees.filter((e: any) => {
+      // hide terminated employees unless the toggle is on
+      if (!showTermed && !e.currently_employed) return false;
+      if (!q) return true;
+      // match against number, first, last, and "first last" / "last, first"
+      const hay = [
+        e.employee_number,
+        e.first_name,
+        e.last_name,
+        `${e.first_name} ${e.last_name}`,
+        `${e.last_name} ${e.first_name}`,
+        `${e.last_name}, ${e.first_name}`,
+      ]
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+
     copy.sort((a, b) => {
       const va = sortValue(a, sort);
       const vb = sortValue(b, sort);
@@ -126,30 +146,71 @@ export default function RosterTable({
       return cmp * dir;
     });
     return copy;
-  }, [employees, sort, dir]);
+  }, [employees, sort, dir, query, showTermed]);
+
+  const termedCount = employees.filter(
+    (e: any) => !e.currently_employed
+  ).length;
 
   const headerProps = { sort, dir, onSort };
 
   return (
-    <Table
-      head={
-        <>
-          <SortHeader label="#" col="number" {...headerProps} />
-          <SortHeader label="Name" col="name" {...headerProps} />
-          <SortHeader label="Payroll" col="payroll" {...headerProps} />
-          <SortHeader label="Type" col="type" {...headerProps} />
-          <SortHeader label="Schedule" col="schedule" {...headerProps} />
-          <SortHeader label="Default code" col="code" {...headerProps} />
-          <SortHeader
-            label="Flags"
-            col="status"
-            title="Sort active first"
-            {...headerProps}
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search name or number…"
+          className="w-64 rounded-md border border-[var(--line)] bg-white px-3 py-1.5 text-sm"
+        />
+        {query && (
+          <button
+            onClick={() => setQuery("")}
+            className="text-xs text-[var(--accent)] hover:underline"
+          >
+            Clear
+          </button>
+        )}
+
+        <label className="ml-auto flex items-center gap-2 text-sm text-[var(--muted)]">
+          <input
+            type="checkbox"
+            checked={showTermed}
+            onChange={(e) => setShowTermed(e.target.checked)}
+            className="h-4 w-4"
           />
-          <th className="py-2 font-medium"></th>
-        </>
-      }
-    >
+          Show terminated
+          {termedCount > 0 && (
+            <span className="text-xs">({termedCount})</span>
+          )}
+        </label>
+      </div>
+
+      <p className="text-xs text-[var(--muted)]">
+        {rows.length} employee{rows.length === 1 ? "" : "s"}
+        {query || !showTermed ? " shown" : ""}
+      </p>
+
+      <Table
+        head={
+          <>
+            <SortHeader label="#" col="number" {...headerProps} />
+            <SortHeader label="Name" col="name" {...headerProps} />
+            <SortHeader label="Payroll" col="payroll" {...headerProps} />
+            <SortHeader label="Type" col="type" {...headerProps} />
+            <SortHeader label="Schedule" col="schedule" {...headerProps} />
+            <SortHeader label="Default code" col="code" {...headerProps} />
+            <SortHeader
+              label="Flags"
+              col="status"
+              title="Sort active first"
+              {...headerProps}
+            />
+            <th className="py-2 font-medium"></th>
+          </>
+        }
+      >
       {rows.map((e: any) => (
         <tr key={e.id} className="border-b border-[var(--line)] last:border-0">
           <td className="py-3 pr-4 font-mono text-xs">
@@ -204,6 +265,7 @@ export default function RosterTable({
           </td>
         </tr>
       ))}
-    </Table>
+      </Table>
+    </div>
   );
 }

@@ -48,13 +48,19 @@ async function guardTimecardWrite(timecardId: string): Promise<
   return { ok: true, userId: user.id, employeeId: card.employee_id };
 }
 
-/** Convert clock times to hours, handling a shift that crosses midnight. */
+/**
+ * Convert clock times to hours, handling a shift that crosses midnight,
+ * and round the total to the nearest quarter hour. Payroll is quarter-hour
+ * based, so 7:00-3:37 (8h37m) rounds to 8.50, not 8.62.
+ */
 function hoursFromClock(startTime: string, endTime: string): number {
   const [sh, sm] = startTime.split(":").map(Number);
   const [eh, em] = endTime.split(":").map(Number);
   let mins = eh * 60 + em - (sh * 60 + sm);
   if (mins < 0) mins += 24 * 60;
-  return Math.round((mins / 60) * 100) / 100;
+  const hours = mins / 60;
+  // nearest quarter hour
+  return Math.round(hours * 4) / 4;
 }
 
 /** Open (or create) the timecard for an employee in a period. */
