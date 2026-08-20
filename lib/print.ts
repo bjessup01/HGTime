@@ -7,6 +7,7 @@ export type PrintCard = {
   workLines: any[];
   timeOffLines: any[];
   weeks: any[];
+  salariedSplit?: any[];
   totals: {
     hoursWorked: number;
     timeOff: number;
@@ -46,6 +47,25 @@ export async function loadPrintCard(timecardId: string): Promise<PrintCard | nul
   const h = (header as any[])?.[0];
   if (!h) return null;
 
+  // Salaried employees may split their flat 80 hours across two or more
+  // work codes at fixed percentages. Load the split if one is configured;
+  // otherwise the print shows the single default-code line.
+  let salariedSplit: any[] = [];
+  if (h.is_salaried) {
+    const { data: tc } = await sb
+      .from("timecards")
+      .select("employee_id")
+      .eq("id", timecardId)
+      .single();
+    if (tc?.employee_id) {
+      const { data: split } = await sb.rpc("salaried_split_lines", {
+        p_employee_id: tc.employee_id,
+        p_base_hours: 80,
+      });
+      salariedSplit = (split as any[]) ?? [];
+    }
+  }
+
   const work = (workLines as any[]) ?? [];
   const off = (timeOffLines as any[]) ?? [];
   const wk = (weeks as any[]) ?? [];
@@ -77,6 +97,7 @@ export async function loadPrintCard(timecardId: string): Promise<PrintCard | nul
     workLines: work,
     timeOffLines: off,
     weeks: wk,
+    salariedSplit,
     totals: {
       hoursWorked: round(hoursWorked),
       timeOff: round(timeOff),

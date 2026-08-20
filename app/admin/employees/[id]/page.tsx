@@ -7,6 +7,7 @@ import { Panel } from "@/components/ui";
 import ResetPinButton from "./reset-pin-button";
 import EmployeeFlags from "./employee-flags";
 import AccrualRates from "./accrual-rates";
+import SalariedSplit from "./salaried-split";
 import AssignmentHistory from "./assignment-history";
 import EmploymentHistory from "./employment-history";
 import SupervisorManager from "./supervisor-manager";
@@ -67,6 +68,7 @@ export default async function EmployeeDetail({ params }: { params: { id: string 
     { data: myWorkCodes },
     { data: timeOffCodes },
     { data: myTimeOffCodes },
+    { data: mySplit },
   ] = await Promise.all([
     sb.from("supervisor_assignments")
       .select("supervisor_id, employees!supervisor_assignments_supervisor_id_fkey(id, first_name, last_name, employee_number)")
@@ -79,7 +81,10 @@ export default async function EmployeeDetail({ params }: { params: { id: string 
     sb.from("employee_work_codes").select("work_code_id").eq("employee_id", params.id),
     sb.from("time_off_codes").select("id, code, description").eq("active", true).order("sort_order"),
     sb.from("employee_time_off_codes").select("time_off_code_id").eq("employee_id", params.id),
+    sb.rpc("get_salaried_split", { p_employee_id: params.id }),
   ]);
+
+  const salariedSplit = (mySplit as any[]) ?? [];
 
   return (
     <AppShell>
@@ -100,6 +105,13 @@ export default async function EmployeeDetail({ params }: { params: { id: string 
         <EmployeeFlags employee={employee} />
 
         <AccrualRates employeeId={employee.id} rates={rates ?? []} />
+
+        <SalariedSplit
+          employeeId={employee.id}
+          isSalaried={employee.employee_type === "salaried"}
+          workCodes={workCodes ?? []}
+          split={salariedSplit}
+        />
 
         <AssignmentHistory
           employeeId={employee.id}

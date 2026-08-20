@@ -49,7 +49,7 @@ export default function PrintableTimecard({
   card: PrintCard;
   printedAt: string;
 }) {
-  const { header: h, notes, codesUsed, workLines, timeOffLines, weeks, totals } = card;
+  const { header: h, notes, codesUsed, workLines, timeOffLines, weeks, totals, salariedSplit } = card;
 
   // Group work lines by date so the date prints once per day
   const byDate = new Map<string, any[]>();
@@ -101,13 +101,25 @@ export default function PrintableTimecard({
         </thead>
         <tbody>
           {h.is_salaried ? (
-            <tr>
-              <td>{fmtDate(h.period_start)}</td>
-              <td>
-                {h.default_work_code} {h.default_work_desc}
-              </td>
-              <td className="tc-num">{hrs(80)}</td>
-            </tr>
+            salariedSplit && salariedSplit.length > 0 ? (
+              salariedSplit.map((s: any, i: number) => (
+                <tr key={i}>
+                  <td>{i === 0 ? fmtDate(h.period_start) : ""}</td>
+                  <td>
+                    {s.code} {s.description}
+                  </td>
+                  <td className="tc-num">{hrs(s.hours)}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td>{fmtDate(h.period_start)}</td>
+                <td>
+                  {h.default_work_code} {h.default_work_desc}
+                </td>
+                <td className="tc-num">{hrs(80)}</td>
+              </tr>
+            )
           ) : (
             Array.from(byDate.entries()).map(([date, lines]) =>
               lines.map((l, i) => (

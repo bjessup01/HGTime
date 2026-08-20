@@ -1089,3 +1089,56 @@ full week:         40.00 regular, 11.25 OT
 ```
 
 Approval order no longer changes any number.
+
+---
+
+# Cash-out codes exempt from the 24-hour cap
+
+## Run the migration
+
+`supabase/migrations/0028_cashout_cap_exempt.sql`
+
+## Why
+
+The 24h/day cap catches data-entry errors on time that occupies the day —
+worked hours and ordinary time off. A vacation cash-out isn't that: it's a
+payout recorded on a date and can be a full accrued balance (e.g. 122 hours),
+which the cap was wrongly rejecting.
+
+Codes flagged `allow_partial_hours` (the cash-out codes) are now exempt from the
+cap. They neither trigger it nor count toward the day's 24-hour total, so a large
+cash-out can sit on the same day as a normal shift without either interfering.
+
+Normal entries are still capped exactly as before — a 20-hour work entry on a
+9-hour day is still rejected. Only cash-out codes are exempt, and the
+floating-holiday balance check is unchanged.
+
+---
+
+# Salaried work-code split
+
+## Run the migration
+
+`supabase/migrations/0029_salaried_code_split.sql`
+
+## What it does
+
+Some salaried employees have their flat 80 hours split across two or more work
+codes at fixed percentages — e.g. 25% Reardan clerical, 75% Seed admin, printing
+as 20.00 and 60.00. The split is per-employee, the same each period, and does not
+interact with time off: salaried always exports 80 hours, now divided by the
+percentages.
+
+## Setting a split
+
+On a **salaried** employee's detail page there's a new "Work-code split" panel
+(it doesn't appear for hourly employees). Choose two or more work codes, enter
+percentages that sum to 100, and save. "Clear split" reverts to the single flat
+line on the default code.
+
+Percentages can be fractional (e.g. 33.33 / 66.67). Each line rounds to two
+decimals and the last line absorbs any rounding remainder, so the lines always
+sum to exactly 80.
+
+Employees with no split configured print exactly as before — one 80-hour line on
+their default work code.

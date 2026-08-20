@@ -436,3 +436,30 @@ export async function undoTermination(employeeId: string): Promise<Result> {
   revalidatePath("/admin/employees");
   return { ok: true, message: "Termination undone." };
 }
+
+/**
+ * Set (or clear) a salaried employee's work-code split. Pass matching
+ * arrays of work-code ids and percentages that sum to 100; empty clears
+ * the split so the employee reverts to a single flat 80-hour line.
+ */
+export async function setSalariedSplit(
+  employeeId: string,
+  lines: { work_code_id: string; percent: number }[]
+): Promise<r> {
+  const sb = supabaseServer();
+
+  const ids = lines.map((l) => l.work_code_id);
+  const pcts = lines.map((l) => l.percent);
+
+  const { error } = await sb.rpc("set_salaried_split", {
+    p_employee_id: employeeId,
+    p_work_code_ids: ids.length ? ids : null,
+    p_percents: pcts.length ? pcts : null,
+  });
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/admin/employees/${employeeId}`);
+  revalidatePath("/print");
+  return { ok: true, message: "Salaried split saved." };
+}
