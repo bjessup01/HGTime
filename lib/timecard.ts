@@ -189,7 +189,7 @@ export async function loadTimecard(timecardId: string) {
     sb
       .from("timecard_entries")
       .select(
-        "*, work_codes(code, description), time_off_codes(code, description, bucket)"
+        "*, work_codes(code, description), time_off_codes(code, description, bucket, allow_partial_hours)"
       )
       .eq("timecard_id", timecardId)
       .order("work_date")
@@ -227,7 +227,10 @@ export async function loadTimecard(timecardId: string) {
 }
 
 /** Work and time-off codes this employee may use. */
-export async function loadEmployeeCodes(employeeId: string) {
+export async function loadEmployeeCodes(
+  employeeId: string,
+  viewerIsAdmin = false
+) {
   const sb = supabaseServer();
 
   const [
@@ -236,6 +239,7 @@ export async function loadEmployeeCodes(employeeId: string) {
     { data: shuttleLevels },
     { data: fhAvailable },
     { data: assignment },
+    { data: adminCodes },
   ] = await Promise.all([
     sb
       .from("employee_work_codes")
@@ -244,7 +248,7 @@ export async function loadEmployeeCodes(employeeId: string) {
     sb
       .from("employee_time_off_codes")
       .select(
-        "time_off_codes(id, code, description, bucket, requires_zero_hours, payroll_admin_only)"
+        "time_off_codes(id, code, description, bucket, requires_zero_hours, payroll_admin_only, allow_partial_hours)"
       )
       .eq("employee_id", employeeId),
     sb
@@ -258,6 +262,19 @@ export async function loadEmployeeCodes(employeeId: string) {
       .select("default_work_code_id")
       .eq("id", employeeId)
       .maybeSingle(),
+    // Admin-only codes (VCO, OTHER, etc.) aren't in an employee's personal
+    // list — they're payroll tools. Load them globally so an admin entering
+    // time on someone's card can pick them; hidden from employees.
+    viewerIsAdmin
+      ? sb
+          .from("time_off_codes")
+          .select(
+            "id, code, description, bucket, requires_zero_hours, payroll_admin_only, allow_partial_hours"
+          )
+          .eq("payroll_admin_only", true)
+          .eq("active", true)
+          .order("sort_order")
+      : Promise.resolve({ data: [] as any[] }),
   ]);
 
   return {
@@ -265,10 +282,15 @@ export async function loadEmployeeCodes(employeeId: string) {
       .map((r: any) => r.work_codes)
       .filter(Boolean)
       .sort((a: any, b: any) => a.code.localeCompare(b.code)),
-    // Admin-only codes never appear in the employee's picker.
-    timeOffCodes: (timeOffCodes ?? [])
-      .map((r: any) => r.time_off_codes)
-      .filter((c: any) => c && !c.payroll_admin_only),
+    // The employee's own assigned codes, minus admin-only ones, plus the
+    // global admin-only codes when an admin is viewing. An admin entering
+    // time on someone's card can pick VCO, OTHER, etc.; employees can't.
+    timeOffCodes: [
+      ...(timeOffCodes ?? [])
+        .map((r: any) => r.time_off_codes)
+        .filter((c: any) => c && !c.payroll_admin_only),
+      ...(viewerIsAdmin ? adminCodes ?? [] : []),
+    ].sort((a: any, b: any) => a.code.localeCompare(b.code)),
     shuttleLevels: shuttleLevels ?? [],
     defaultWorkCodeId: assignment?.default_work_code_id ?? null,
     floatingHolidayAvailable: Number(fhAvailable ?? 0),

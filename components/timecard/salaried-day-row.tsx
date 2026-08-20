@@ -21,6 +21,7 @@ export default function SalariedDayRow({
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [mode, setMode] = useState<"time_off" | "work">("time_off");
+  const [timeOffCodeId, setTimeOffCodeId] = useState("");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -217,7 +218,13 @@ export default function SalariedDayRow({
 
           {mode === "time_off" ? (
             <>
-              <select name="time_off_code_id" required className={selectClass}>
+              <select
+                name="time_off_code_id"
+                required
+                className={selectClass}
+                value={timeOffCodeId}
+                onChange={(e) => setTimeOffCodeId(e.target.value)}
+              >
                 <option value="">Choose a time-off code…</option>
                 {codes.timeOffCodes.map((c: any) => (
                   <option key={c.id} value={c.id}>
@@ -226,23 +233,37 @@ export default function SalariedDayRow({
                 ))}
               </select>
 
-              <div className="flex items-end gap-3">
-                <div className="w-32">
-                  <label className="mb-1 block text-xs font-medium">Hours</label>
-                  <input
-                    name="hours"
-                    type="number"
-                    step="0.25"
-                    min="0"
-                    defaultValue={day.scheduled_hours || ""}
-                    className={inputClass}
-                  />
-                </div>
-                <p className="pb-2.5 text-xs text-[var(--muted)]">
-                  Full day is {Number(day.scheduled_hours)}h. Enter less for a partial
-                  day and confirm the rest as worked.
-                </p>
-              </div>
+              {(() => {
+                const picked = codes.timeOffCodes.find(
+                  (c: any) => c.id === timeOffCodeId
+                );
+                const partial = picked?.allow_partial_hours;
+                return (
+                  <div className="flex items-end gap-3">
+                    <div className="w-32">
+                      <label className="mb-1 block text-xs font-medium">
+                        Hours
+                      </label>
+                      <input
+                        name="hours"
+                        type="number"
+                        step={partial ? "0.01" : "0.25"}
+                        min="0"
+                        key={partial ? "partial" : "quarter"}
+                        defaultValue={partial ? "" : day.scheduled_hours || ""}
+                        className={inputClass}
+                      />
+                    </div>
+                    <p className="pb-2.5 text-xs text-[var(--muted)]">
+                      {partial
+                        ? "Partial hours allowed for this code."
+                        : `Full day is ${Number(
+                            day.scheduled_hours
+                          )}h. Enter less for a partial day and confirm the rest as worked.`}
+                    </p>
+                  </div>
+                );
+              })()}
             </>
           ) : (
             <>

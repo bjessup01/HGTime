@@ -89,7 +89,7 @@ export default async function DashboardPage({
 
   const [data, codes, entryPermission] = await Promise.all([
     loadTimecard(opened.timecardId),
-    loadEmployeeCodes(targetId),
+    loadEmployeeCodes(targetId, user.role === "payroll_admin"),
     canEnterTimeNow(targetId),
   ]);
 
