@@ -124,6 +124,7 @@ export default async function DashboardPage({
           canEdit={entryPermission.allowed || isPrivileged}
           networkBlocked={!entryPermission.allowed && isOwnCard}
           viewingName={targetName}
+          shuttleEligible={target.shuttle_eligible}
           scheduleCode={target.schedule_code}
         />
       </AppShell>

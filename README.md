@@ -1169,3 +1169,31 @@ holiday (5); the cap only changes things when excess exceeds the holiday.
 The same cap applies to the double-time election: working 9 over a 4-hour
 holiday pays 4 hours at double rate, not 9. The printed note shows the capped
 figure and says when it was capped.
+
+---
+
+# Double time is not capped at holiday hours (correction to 0030)
+
+## Run the migration
+
+`supabase/migrations/0031_dt_uncap.sql`
+
+Then re-open/re-save any card with a double-time holiday election, or run through
+the elections again, so the split re-peels the full excess.
+
+## The distinction
+
+0030 capped both floating holiday and double time at the day's holiday hours.
+That's right for floating holiday but wrong for double time:
+
+- **Floating holiday** gives back the holiday you didn't take — capped at the
+  holiday hours. `min(excess, holiday_hours)`.
+- **Double time** is premium pay for *actually working* the holiday — every hour
+  worked over expected is real work and earns double time. Uncapped: full
+  `excess`.
+
+An 8-hour holiday worked 9 hours over expected: floating holiday would bank 8,
+but double time pays all 9 at double rate.
+
+0031 restores double time to the full excess while keeping the floating-holiday
+cap from 0030.

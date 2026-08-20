@@ -37,6 +37,7 @@ export default function SalariedTimecardView({
   canEdit,
   networkBlocked,
   viewingName,
+  shuttleEligible,
   scheduleCode,
 }: any) {
   const router = useRouter();
@@ -259,6 +260,7 @@ export default function SalariedTimecardView({
               meta={dayMetaByDate.get(day.work_date)}
               codes={codes}
               editable={editable}
+              shuttleEligible={shuttleEligible}
               label={fmtDate(day.work_date)}
             />
           ))}

@@ -6,6 +6,7 @@ import {
   addEntry,
   deleteEntry,
   confirmSalariedDay,
+  setShuttleIncentive,
 } from "@/lib/actions/timecard";
 import { Button, Badge, inputClass, selectClass } from "@/components/ui";
 
@@ -16,6 +17,7 @@ export default function SalariedDayRow({
   meta,
   codes,
   editable,
+  shuttleEligible,
   label,
 }: any) {
   const router = useRouter();
@@ -31,6 +33,13 @@ export default function SalariedDayRow({
   const isConfirmed = day.status === "confirmed";
   const hasEntries = entries.length > 0;
   const isHoliday = Number(day.holiday_hours) > 0;
+
+  function onShuttle(levelId: string) {
+    startTransition(async () => {
+      await setShuttleIncentive(timecardId, day.work_date, levelId || null);
+      router.refresh();
+    });
+  }
 
   function onToggleConfirm() {
     startTransition(async () => {
@@ -181,6 +190,28 @@ export default function SalariedDayRow({
       )}
 
       {error && <p className="mt-2 text-xs text-red-700">{error}</p>}
+
+      {shuttleEligible &&
+        codes.shuttleLevels?.length > 0 &&
+        editable &&
+        !notEmployed && (
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-xs text-[var(--muted)]">Shuttle incentive:</span>
+            <select
+              value={meta?.shuttle_level_id ?? ""}
+              onChange={(e) => onShuttle(e.target.value)}
+              disabled={pending}
+              className="rounded border border-[var(--line)] bg-white px-2 py-1 text-xs"
+            >
+              <option value="">none</option>
+              {codes.shuttleLevels.map((l: any) => (
+                <option key={l.id} value={l.id}>
+                  {l.label} — {l.criteria}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
       {adding && (
         <form
