@@ -1142,3 +1142,30 @@ sum to exactly 80.
 
 Employees with no split configured print exactly as before — one 80-hour line on
 their default work code.
+
+---
+
+# Floating holiday / double time capped at holiday hours
+
+## Run the migration
+
+`supabase/migrations/0030_fh_holiday_cap.sql`
+
+Then re-open and re-save any affected salaried holiday cards (or they correct
+themselves next time the card is touched), so the ledger re-banks the capped
+amount.
+
+## The rule
+
+Floating holiday represents giving back the holiday an employee didn't take, so
+it can't exceed that day's holiday hours. The credited amount is now
+`min(excess over expected, that day's holiday hours)`.
+
+A 4x9+4 Good Friday splits into a 5-hour Thursday and a 4-hour Friday. Working 9
+hours over expected on the Friday banked 9 — it now banks 4, the Friday holiday.
+The Thursday portion was already right because the excess (5) equalled the
+holiday (5); the cap only changes things when excess exceeds the holiday.
+
+The same cap applies to the double-time election: working 9 over a 4-hour
+holiday pays 4 hours at double rate, not 9. The printed note shows the capped
+figure and says when it was capped.
